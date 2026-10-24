@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>svc warm</title>
+<style>
+ body{font-family:system-ui,-apple-system,sans-serif;margin:0;padding:16px;background:#0f1115;color:#e8eaed}
+ h3{margin:0 0 6px}
+ textarea{width:100%;height:110px;box-sizing:border-box;font-family:ui-monospace,monospace;font-size:12px;background:#171a21;color:#e8eaed;border:1px solid #2a2f3a;border-radius:10px;padding:10px}
+ button{padding:12px 18px;font-size:16px;border:0;border-radius:10px;background:#3b82f6;color:#fff;margin:10px 8px 10px 0;font-weight:600}
+ #out{font-family:ui-monospace,monospace;font-size:12px;word-break:break-all;background:#171a21;border:1px solid #2a2f3a;border-radius:10px;padding:10px;min-height:44px}
+ #fc{margin:14px 0;min-height:60px}
+ .hint{font-size:13px;color:#98a2b3;line-height:1.5}
+</style>
+</head>
+<body>
+<h3>svc &mdash; captcha warm</h3>
+<p class="hint">1. tempel BLOB dari Telegram &rarr; 2. solve &rarr; 3. Copy token &rarr; 4. balas token ke bot.</p>
+<textarea id="blob" placeholder="tempel blob di sini"></textarea>
+<button id="go">Mulai</button>
+<button id="copy">Copy token</button>
+<div id="fc"></div>
+<div id="out">token muncul di sini</div>
+
+<script src="https://client-api.arkoselabs.com/v2/A2A14B1D-1AF3-C791-9BBC-EE33CC7A0A6F/api.js"></script>
+<script>
+var PK = "A2A14B1D-1AF3-C791-9BBC-EE33CC7A0A6F";
+var out = document.getElementById("out");
+function onDone(t){ out.textContent = t; }
+document.getElementById("go").onclick = function(){
+  var blob = document.getElementById("blob").value.trim();
+  document.getElementById("fc").innerHTML = "";
+  out.textContent = "loading...";
+  try {
+    var ae = new ArkoseEnforcement({
+      public_key: PK,
+      data: blob ? { blob: blob } : {},
+      target_html: "fc",
+      callback: onDone,
+      onCompleted: onDone,
+      onReady: function(){ out.textContent = "siap, solve captchanya"; },
+      onError: function(e){ out.textContent = "err: " + JSON.stringify(e); }
+    });
+    ae.run();
+  } catch (e) {
+    out.textContent = "err: " + e;
+  }
+};
+document.getElementById("copy").onclick = function(){
+  var t = out.textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(t);
+  out.textContent = t;
+};
+</script>
+</body>
+</html>
