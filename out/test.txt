@@ -49,3 +49,10 @@ svc.py ada: True 22721
                                                                 ^
 SyntaxError: invalid decimal literal
 exit=1
+
+=== smoke: svc.py (packed) ===
+  File "/home/runner/work/svc/svc/svc.py", line 41
+    yaB3pcDrO7wF4qp9MuRD6e8wwdtLtP5/VVbqlXGDp6QaGTgUVsqa6oladqS/0RVN0P3JbR+nZ9Xp
+                                                                ^
+SyntaxError: invalid decimal literal
+exit=1
