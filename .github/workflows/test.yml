@@ -1,0 +1,50 @@
+name: test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: test
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: selftest (network, boleh flaky)
+        run: python3 src/selftest.py || true
+
+      - name: pack (no secret, aman buat repo publik)
+        run: python3 src/pack.py --no-secret
+
+      - name: smoke packed binary (STRICT)
+        env:
+          SVCMODE: worker
+          SVC_DURATION: "20"
+        run: |
+          echo "" >> out/test.txt
+          echo "=== smoke: svc.py (packed) ===" >> out/test.txt
+          python3 svc.py >> out/test.txt 2>&1
+
+      - name: commit result
+        if: always()
+        run: |
+          git config user.name  "svc-bot"
+          git config user.email "svc-bot@users.noreply.github.com"
+          mkdir -p out
+          git add out
+          git add -f svc.py
+          git diff --cached --quiet || git commit -m "test: $(date -u +%FT%TZ)"
+          git push
