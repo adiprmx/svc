@@ -7,17 +7,17 @@ semua modul ke-import
 
 === csrf ===
 GET /v2/login -> 404 | x-csrf-token: False
-(csrf) 0.2s
+(csrf) 0.1s
 
 === users ===
 users/1 -> 200 | Roblox
-(users) 0.2s
+(users) 0.1s
 
 === ua-variants ===
 login Roblox/WinInet                                 -> 403 denied
 login Roblox/2.616.551 (Android; Android 12; SM-G991 -> 403 denied
 login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 denied
-(ua-variants) 5.2s
+(ua-variants) 4.9s
 
 === captcha-rate ===
   attempt 1 -> denied
@@ -29,7 +29,7 @@ login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 denied
   attempt 7 -> denied
   attempt 8 -> denied
 CAPTCHA-RATE dari IP ini: {'denied': 8}
-(captcha-rate) 11.4s
+(captcha-rate) 10.7s
 
 === store ===
 users: 1 | pending: 1
@@ -39,27 +39,13 @@ hits: []
 (store) 0.0s
 
 === pack ===
-pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (20 KB) 
-svc.py ada: True 21413
+pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (22 KB) 
+svc.py ada: True 22721
 (pack) 0.0s
 
 === smoke: svc.py (packed) ===
-  File "/home/runner/work/svc/svc/svc.py", line 40
-    rwqkC+DIAlIhQFz8ODltzj/LA49VY+DUKkCVTOnq1lv0G+2y1u5KCcoxKMfdcDz6pDP6qkCLA8bW
-                                                  ^
-SyntaxError: invalid decimal literal
-exit=1
-
-=== smoke: svc.py (packed) ===
-  File "/home/runner/work/svc/svc/svc.py", line 40
-    rwqkC+DIAlIhQFz8ODltzj/LA49VY+DUKkCVTOnq1lv0G+2y1u5KCcoxKMfdcDz6pDP6qkCLA8bW
-                                                  ^
-SyntaxError: invalid decimal literal
-exit=1
-
-=== smoke: svc.py (packed) ===
-  File "/home/runner/work/svc/svc/svc.py", line 40
-    rwqkC+DIAlIhQFz8ODltzj/LA49VY+DUKkCVTOnq1lv0G+2y1u5KCcoxKMfdcDz6pDP6qkCLA8bW
-                                                  ^
+  File "/home/runner/work/svc/svc/svc.py", line 41
+    yaB3pcDrO7wF4qp9MuRD6e8wwdtLtP5/VVbqlXGDp6QaGTgUVsqa6oladqS/0RVN0P3JbR+nZ9Xp
+                                                                ^
 SyntaxError: invalid decimal literal
 exit=1
