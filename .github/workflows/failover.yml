@@ -2,8 +2,11 @@ name: failover
 
 on:
   schedule:
-    - cron: "17 */6 * * *"
+    - cron: "7 */6 * * *"
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 concurrency:
   group: failover-${{ matrix.shard }}
@@ -15,8 +18,9 @@ jobs:
     timeout-minutes: 350
     strategy:
       fail-fast: false
+      max-parallel: 6
       matrix:
-        shard: [0, 1]
+        shard: [0, 1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -27,11 +31,14 @@ jobs:
           SVCMODE: worker
           SVC_DURATION: "20000"
           WORKERS: "1"
-          CAPTCHA_MODE: blast
+          CAPTCHA_MODE: auto
           SVC_SHARD: ${{ matrix.shard }}
-          SVC_SHARDS: "2"
+          SVC_SHARDS: "6"
           MAX_ATTEMPTS: "3"
-          BACKUP_FULL: "1"
+          BACKUP_FULL: ${{ matrix.shard == 0 && '1' || '0' }}
+          WORKER_BOT: ${{ matrix.shard == 0 && '1' || '' }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          OWNER_ID: ${{ secrets.OWNER_ID }}
           GITHUB_TOKEN: ${{ secrets.GH_BACKUP_TOKEN }}
           GIST_ID: ${{ secrets.GIST_ID }}
         run: python3 src/main.py
