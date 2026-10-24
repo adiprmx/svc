@@ -280,3 +280,43 @@ def restore(payload):
                  c.get("ts") or now))
         _db.commit()
     return len(data.get("hits", []))
+
+def back_to_pending(u, p, detail=""):
+    """Balikin combo ke pending TANPA nambah attempts (buat kasus warm-wait)."""
+    with _lock:
+        _db.execute("UPDATE combos SET status='pending', detail=?, next_try=0 "
+                    "WHERE username=? AND password=?",
+                    ((detail or "")[:300], _k(u), p))
+        _db.commit()
+
+
+def mark_soft(u, p, detail="", delay=0.0):
+    """invalid yang masih dicurigai (IP jelek) -> bisa di-retry."""
+    now = time.time()
+    with _lock:
+        _db.execute("UPDATE combos SET status='soft', detail=?, ts=?, next_try=? "
+                    "WHERE username=? AND password=?",
+                    ((detail or "")[:300], now, now + delay, _k(u), p))
+        _db.commit()
+
+
+def soft_count():
+    with _lock:
+        return _db.execute("SELECT COUNT(*) c FROM combos "
+                           "WHERE status='soft'").fetchone()["c"]
+
+
+def retry_soft():
+    with _lock:
+        n = _db.execute("SELECT COUNT(*) c FROM combos WHERE status='soft'").fetchone()["c"]
+        _db.execute("UPDATE combos SET status='pending', attempts=0, next_try=0 "
+                    "WHERE status='soft'")
+        _db.commit()
+    return n
+
+
+def update_hit_cookie(u, cookie, note=""):
+    with _lock:
+        _db.execute("UPDATE hits SET cookie=?, note=? WHERE username=?",
+                    (cookie, note, _k(u)))
+        _db.commit()
