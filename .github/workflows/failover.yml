@@ -2,27 +2,34 @@ name: failover
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "17 */6 * * *"
   workflow_dispatch:
 
 concurrency:
-  group: failover
+  group: failover-${{ matrix.shard }}
   cancel-in-progress: false
 
 jobs:
   worker:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: run worker burst
+      - name: run worker
         env:
           SVCMODE: worker
-          SVC_DURATION: "900"
-          WORKERS: "2"
+          SVC_DURATION: "20000"
+          WORKERS: "1"
+          CAPTCHA_MODE: blast
+          SVC_SHARD: ${{ matrix.shard }}
+          SVC_SHARDS: "2"
           MAX_ATTEMPTS: "3"
           BACKUP_FULL: "1"
           GITHUB_TOKEN: ${{ secrets.GH_BACKUP_TOKEN }}
