@@ -1,4 +1,4 @@
-import base64, io, os, random, zipfile, zlib
+import base64, io, os, random, sys, zipfile, zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE) if os.path.basename(HERE) in (".s", "src") else HERE
@@ -6,17 +6,18 @@ OUT = os.path.join(ROOT, "svc.py")
 ENTRY = "main.py"
 ENTRY_NAME = "app.py"
 SKIP = {"pack.py", "svc.py"}
+MARK = "#__P__"
 
 STUB = '''#!/usr/bin/env python3
 import base64, compileall, hashlib, io, os, runpy, sys, zipfile, zlib
 
 _K = {key!r}
-_M = b"#__P__"
+_MARK = {mark!r}
 
 
 def _load():
     src = open(os.path.abspath(__file__), "rb").read()
-    blob = b"".join(src[src.index(_M) + len(_M):].split())
+    blob = b"".join(src[src.rindex(_MARK) + len(_MARK):].split())
     raw = base64.b64decode(blob)
     k = _K
     return zlib.decompress(bytes(b ^ k[n % len(k)] for n, b in enumerate(raw)))
@@ -64,7 +65,8 @@ def main():
     if ENTRY not in files:
         raise SystemExit("main.py gak ketemu di " + HERE)
 
-    secret = read_env()
+    secret = {} if "--no-secret" in sys.argv else read_env()
+
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for f in files:
@@ -79,8 +81,8 @@ def main():
     body = "\n".join(b64[i:i + 76] for i in range(0, len(b64), 76))
 
     with open(OUT, "w", encoding="utf-8") as fh:
-        fh.write(STUB.format(key=key))
-        fh.write("\n#__P__\n")
+        fh.write(STUB.format(key=key, mark=MARK))
+        fh.write("\n" + MARK + "\n")
         fh.write(body + "\n")
     os.chmod(OUT, 0o755)
     print("ok -> %s (%d KB)" % (OUT, os.path.getsize(OUT) // 1024))
