@@ -7,17 +7,17 @@ semua modul ke-import
 
 === csrf ===
 GET /v2/login -> 404 | x-csrf-token: False
-(csrf) 0.6s
+(csrf) 0.4s
 
 === users ===
 users/1 -> 200 | Roblox
-(users) 0.6s
+(users) 0.4s
 
 === ua-variants ===
 login Roblox/WinInet                                 -> 403 denied
 login Roblox/2.616.551 (Android; Android 12; SM-G991 -> 403 denied
 login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 denied
-(ua-variants) 5.2s
+(ua-variants) 5.5s
 
 === captcha-rate ===
   attempt 1 -> denied
@@ -29,7 +29,7 @@ login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 denied
   attempt 7 -> denied
   attempt 8 -> denied
 CAPTCHA-RATE dari IP ini: {'denied': 8}
-(captcha-rate) 11.2s
+(captcha-rate) 12.1s
 
 === store ===
 users: 1 | pending: 1
@@ -39,12 +39,12 @@ hits: []
 (store) 0.0s
 
 === pack ===
-pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (27 KB) 
-svc.py ada: True 28550
+pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (28 KB) 
+svc.py ada: True 28917
 (pack) 0.0s
 
 === smoke: svc.py (packed) ===
-2026-10-24 19:46:36,176 INFO svc restore: 0 hits
-2026-10-24 19:46:36,176 INFO svc regen 0 combo
-2026-10-24 19:46:36,178 INFO svc svc up mode=worker workers=2 shard=0/1 captcha=auto
-2026-10-24 19:46:56,181 INFO svc svc down
+2026-10-24 19:48:31,185 INFO svc restore: 0 hits
+2026-10-24 19:48:31,186 INFO svc regen 0 combo
+2026-10-24 19:48:31,187 INFO svc svc up mode=worker workers=2 shard=0/1 captcha=auto
+2026-10-24 19:48:51,189 INFO svc svc down
