@@ -1,0 +1,46 @@
+name: quicktest
+
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "durasi menit"
+        default: "10"
+      captcha_mode:
+        description: "auto | blast"
+        default: "auto"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quicktest
+  cancel-in-progress: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: selftest (network, boleh flaky)
+        run: python3 src/selftest.py || true
+
+      - name: run worker + bot
+        env:
+          SVCMODE: worker
+          SVC_DURATION: ${{ github.event.inputs.minutes && fromJSON(github.event.inputs.minutes) * 60 || 600 }}
+          WORKERS: "1"
+          CAPTCHA_MODE: ${{ github.event.inputs.captcha_mode || 'auto' }}
+          SVC_SHARD: "0"
+          SVC_SHARDS: "1"
+          WORKER_BOT: "1"
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          OWNER_ID: ${{ secrets.OWNER_ID }}
+          GITHUB_TOKEN: ${{ secrets.GH_BACKUP_TOKEN }}
+          GIST_ID: ${{ secrets.GIST_ID }}
+        run: python3 src/main.py
