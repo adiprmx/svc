@@ -7,17 +7,17 @@ semua modul ke-import
 
 === csrf ===
 GET /v2/login -> 404 | x-csrf-token: False
-(csrf) 0.1s
+(csrf) 0.3s
 
 === users ===
 users/1 -> 200 | Roblox
-(users) 0.4s
+(users) 0.2s
 
 === ua-variants ===
 login Roblox/WinInet                                 -> 403 denied
 login Roblox/2.616.551 (Android; Android 12; SM-G991 -> 403 denied
 login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 denied
-(ua-variants) 5.2s
+(ua-variants) 5.3s
 
 === captcha-rate ===
   attempt 1 -> denied
@@ -29,7 +29,7 @@ login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 denied
   attempt 7 -> denied
   attempt 8 -> denied
 CAPTCHA-RATE dari IP ini: {'denied': 8}
-(captcha-rate) 11.3s
+(captcha-rate) 11.8s
 
 === store ===
 users: 1 | pending: 1
@@ -40,12 +40,12 @@ hits: []
 
 === pack ===
 pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (25 KB) 
-svc.py ada: True 25741
+svc.py ada: True 25744
 (pack) 0.0s
 
 === smoke: svc.py (packed) ===
   File "/home/runner/work/svc/svc/svc.py", line 39
-    C1frDBBMNtbaDhzyoc+fMx2CuFbLDqYLW5NkeMUr/V88d/nV6bvwSOAuYvcaaeboq+9rkDShHbtS
-                                                                      ^
+    c4H56eKqmg0OY0GFx+5v3RAaKGeVePxQGAC9r6zmb4FEoeswG11ckzRDP4B8SBYGpnf7oTvXR+AR
+                      ^
 SyntaxError: invalid decimal literal
 exit=1
