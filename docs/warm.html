@@ -9,6 +9,7 @@
  h3{margin:0 0 6px}
  textarea{width:100%;height:110px;box-sizing:border-box;font-family:ui-monospace,monospace;font-size:12px;background:#171a21;color:#e8eaed;border:1px solid #2a2f3a;border-radius:10px;padding:10px}
  button{padding:12px 18px;font-size:16px;border:0;border-radius:10px;background:#3b82f6;color:#fff;margin:10px 8px 10px 0;font-weight:600}
+ button.alt{background:#374151}
  #out{font-family:ui-monospace,monospace;font-size:12px;word-break:break-all;background:#171a21;border:1px solid #2a2f3a;border-radius:10px;padding:10px;min-height:44px}
  #fc{margin:14px 0;min-height:60px}
  .hint{font-size:13px;color:#98a2b3;line-height:1.5}
@@ -16,41 +17,114 @@
 </head>
 <body>
 <h3>svc &mdash; captcha warm</h3>
-<p class="hint">1. tempel BLOB dari Telegram &rarr; 2. solve &rarr; 3. Copy token &rarr; 4. balas token ke bot.</p>
-<textarea id="blob" placeholder="tempel blob di sini"></textarea>
+<p class="hint">1. tempel PAYLOAD dari Telegram &rarr; 2. Mulai &rarr; 3. solve &rarr; 4. Copy TOKEN &rarr; 5. balas token ke bot.</p>
+<textarea id="blob" placeholder="tempel PAYLOAD di sini"></textarea>
 <button id="go">Mulai</button>
 <button id="copy">Copy token</button>
+<button id="full" class="alt">Tes login penuh (opsional)</button>
 <div id="fc"></div>
 <div id="out">token muncul di sini</div>
 
-<script src="https://client-api.arkoselabs.com/v2/A2A14B1D-1AF3-C791-9BBC-EE33CC7A0A6F/api.js"></script>
 <script>
-var PK = "A2A14B1D-1AF3-C791-9BBC-EE33CC7A0A6F";
 var out = document.getElementById("out");
-function onDone(t){ out.textContent = t; }
-document.getElementById("go").onclick = function(){
-  var blob = document.getElementById("blob").value.trim();
-  document.getElementById("fc").innerHTML = "";
-  out.textContent = "loading...";
-  try {
-    var ae = new ArkoseEnforcement({
-      public_key: PK,
-      data: blob ? { blob: blob } : {},
-      target_html: "fc",
-      callback: onDone,
-      onCompleted: onDone,
-      onReady: function(){ out.textContent = "siap, solve captchanya"; },
-      onError: function(e){ out.textContent = "err: " + JSON.stringify(e); }
-    });
-    ae.run();
-  } catch (e) {
-    out.textContent = "err: " + e;
+var P = {};
+function log(t){ out.textContent = t; }
+
+function b64d(s){
+  s = String(s).replace(/-/g,"+").replace(/_/g,"/");
+  while (s.length % 4) s += "=";
+  var bin = atob(s), bytes = new Uint8Array(bin.length);
+  for (var i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder("utf-8").decode(bytes);
+}
+
+function parsePayload(raw){
+  raw = raw.trim();
+  if (!raw) throw new Error("payload kosong");
+  try { return JSON.parse(raw); } catch(e){}
+  return JSON.parse(b64d(raw));
+}
+
+function loadScript(src){
+  return new Promise(function(res, rej){
+    var s = document.createElement("script");
+    s.src = src; s.onload = res; s.onerror = function(){ rej(new Error("gagal load " + src)); };
+    document.head.appendChild(s);
+  });
+}
+
+async function ensureArkose(pk){
+  if (window.ArkoseEnforcement) return;
+  var hosts = ["https://client-api.arkoselabs.com", "https://roblox-api.arkoselabs.com"];
+  for (var i=0;i<hosts.length;i++){
+    try { await loadScript(hosts[i] + "/v2/" + pk + "/api.js"); } catch(e){ continue; }
+    if (window.ArkoseEnforcement) return;
   }
+  throw new Error("api.js arkose gagal ke-load");
+}
+
+async function resolveKey(){
+  if (P.pk) return P.pk;
+  try {
+    var r = await fetch("https://apis.rbxcdn.com/captcha/v1/metadata");
+    var j = await r.json();
+    var k = (j.funCaptchaPublicKeys || {}).ACTION_TYPE_WEB_LOGIN;
+    if (k) return k;
+  } catch(e){}
+  return "476068BF-9607-4799-B53D-966BE98E2B81";
+}
+
+document.getElementById("go").onclick = async function(){
+  document.getElementById("fc").innerHTML = "";
+  log("loading...");
+  try {
+    P = parsePayload(document.getElementById("blob").value);
+    var pk = await resolveKey();
+    P.pk = pk;
+    await ensureArkose(pk);
+    log("siap, solve captchanya");
+    var data = P.blob ? {blob: P.blob} : {};
+    var ae = new ArkoseEnforcement({
+      public_key: pk,
+      data: data,
+      target_html: "fc",
+      callback: function(t){ log(t); },
+      onCompleted: function(t){ log(t); },
+      onReady: function(){ log("siap, solve captchanya"); },
+      onError: function(e){ log("err: " + JSON.stringify(e)); }
+    });
+    if (ae.run) { try { ae.run(); } catch(e){} }
+  } catch(e){ log("err: " + e.message); }
 };
+
 document.getElementById("copy").onclick = function(){
-  var t = out.textContent;
-  if (navigator.clipboard) navigator.clipboard.writeText(t);
-  out.textContent = t;
+  if (navigator.clipboard) navigator.clipboard.writeText(out.textContent);
+};
+
+document.getElementById("full").onclick = async function(){
+  var token = out.textContent.trim();
+  if (!token || token.length < 20) return log("solve dulu");
+  try {
+    var meta = Object.assign({}, JSON.parse(P.meta || "{}"), {captchaToken: token});
+    var csrf = "";
+    try {
+      var r0 = await fetch("https://auth.roblox.com/v2/login", {method:"POST",
+        credentials:"include", headers:{"Content-Type":"application/json"}, body:"{}"});
+      csrf = r0.headers.get("x-csrf-token") || "";
+    } catch(e){}
+    var cr = await fetch("https://apis.roblox.com/challenge/v1/continue", {method:"POST",
+      credentials:"include", headers:{"Content-Type":"application/json","x-csrf-token":csrf},
+      body: JSON.stringify({challengeId:P.cid, challengeType:P.ct||"captcha",
+                            challengeMetadata: JSON.stringify(meta)})});
+    var lr = await fetch("https://auth.roblox.com/v2/login", {method:"POST",
+      credentials:"include", headers:{"Content-Type":"application/json","x-csrf-token":csrf,
+        "Rblx-Challenge-Id":P.cid, "Rblx-Challenge-Type":P.ct||"captcha",
+        "Rblx-Challenge-Metadata": btoa(JSON.stringify(meta))},
+      body: JSON.stringify({ctype: (P.u||"").indexOf("@")>=0 ? "Email" : "Username",
+                            cvalue:P.u, password:P.p})});
+    var body = await lr.text();
+    log("continue=" + cr.status + " login=" + lr.status + "\n" + body.slice(0,300));
+  } catch(e){ log("full err: " + e.message); }
 };
 </script>
 </body>
