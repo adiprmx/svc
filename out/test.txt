@@ -7,7 +7,7 @@ semua modul ke-import
 
 === csrf ===
 GET /v2/login -> 404 | x-csrf-token: False
-(csrf) 0.2s
+(csrf) 0.3s
 
 === users ===
 users/1 -> 200 | Roblox
@@ -39,12 +39,12 @@ hits: []
 (store) 0.0s
 
 === pack ===
-pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (26 KB) 
-svc.py ada: True 26871
+pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (27 KB) 
+svc.py ada: True 28425
 (pack) 0.0s
 
 === smoke: svc.py (packed) ===
-2026-10-24 19:39:56,456 INFO svc restore: 0 hits
-2026-10-24 19:39:56,456 INFO svc regen 0 combo
-2026-10-24 19:39:56,458 INFO svc svc up mode=worker workers=2 shard=0/1 captcha=auto
-2026-10-24 19:40:16,460 INFO svc svc down
+2026-10-24 19:45:13,623 INFO svc restore: 0 hits
+2026-10-24 19:45:13,624 INFO svc regen 0 combo
+2026-10-24 19:45:13,625 INFO svc svc up mode=worker workers=2 shard=0/1 captcha=auto
+2026-10-24 19:45:33,628 INFO svc svc down
