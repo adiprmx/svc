@@ -20,6 +20,21 @@ class Session:
     def clear_cookies(self):
         self.jar.clear()
         self.csrf = None
+        
+    def drop_cookie(self, name):
+        """Hapus satu cookie, sisanya (csrf/trust cookie) tetep hidup."""
+        keep = [c for c in self.jar if c.name != name]
+        self.jar.clear()
+        for c in keep:
+            self.jar.set_cookie(c)
+
+    def probe_csrf(self, url, method="POST", body=None):
+        """Ambil x-csrf-token dari endpoint manapun, return tokennya."""
+        try:
+            self.request(method, url, body)
+        except Exception:
+            pass
+        return self.csrf
 
     def cookie(self, name):
         for c in self.jar:
