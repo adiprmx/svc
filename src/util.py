@@ -1,14 +1,25 @@
-import gzip, http.cookiejar, json, urllib.error, urllib.request
+import gzip, http.cookiejar, json, logging, urllib.error, urllib.request
+
+log = logging.getLogger("svc.http")
 
 
 class Session:
-    def __init__(self, ua, timeout=20):
-        self.ua, self.timeout = ua, timeout
+    def __init__(self, ua, timeout=20, proxy=None):
+        self.ua, self.timeout, self.proxy = ua, timeout, proxy
         self.csrf = None
         self.extra = {}
         self.jar = http.cookiejar.CookieJar()
-        self.opener = urllib.request.build_opener(
-            urllib.request.HTTPCookieProcessor(self.jar))
+        self._build()
+
+    def _build(self):
+        handlers = [urllib.request.HTTPCookieProcessor(self.jar)]
+        if self.proxy:
+            handlers.append(urllib.request.ProxyHandler({"http": self.proxy, "https": self.proxy}))
+        self.opener = urllib.request.build_opener(*handlers)
+
+    def clear_cookies(self):
+        self.jar.clear()
+        self.csrf = None
 
     def cookie(self, name):
         for c in self.jar:
@@ -42,6 +53,7 @@ class Session:
         except urllib.error.HTTPError as e:
             code, hdr, raw = e.code, e.headers, e.read()
         except Exception as e:
+            log.debug("req fail %s %s: %r", method, url, e)
             return 0, {}, "", {"error": repr(e)}
 
         if hdr.get("Content-Encoding") == "gzip":
