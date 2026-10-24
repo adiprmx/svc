@@ -43,6 +43,9 @@ HELP = """svc
 /pw [n] - lihat contoh password list
 /log [n] - ekor log
 /update - git pull
+/retryinvalid - balikin combo 'soft' ke antrian
+/2fa <user> <kode> - selesain 2FA pakai kode dari email/app
+/soft [n] - daftar combo soft
 kirim file .txt - auto: ada ':' = combo, tanpa ':' = password
 kalau ada WARM NEEDED, balas tokennya langsung ke chat ini"""
 
