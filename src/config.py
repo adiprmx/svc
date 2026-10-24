@@ -26,21 +26,43 @@ E = _env(os.path.join(BASE, ".env"))
 
 
 def get(key, default=""):
-    v = _SECRET.get(key) or E.get(key)
+    v = _SECRET.get(key) or E.get(key) or os.environ.get(key)
     return v if v not in (None, "") else default
 
 
+def geti(key, default=0):
+    try:
+        return int(str(get(key, default)).strip() or default)
+    except Exception:
+        return default
+
+
+def getf(key, default=0.0):
+    try:
+        return float(str(get(key, default)).strip() or default)
+    except Exception:
+        return default
+
+
 BOT_TOKEN = get("BOT_TOKEN")
-OWNER_ID = int(get("OWNER_ID", "0") or 0)
+OWNER_ID = geti("OWNER_ID", 0)
 GITHUB_TOKEN = get("GITHUB_TOKEN")
 GIST_ID = get("GIST_ID")
 
 UA = get("USER_AGENT", "Roblox/WinInet")
-HTTP_TIMEOUT = int(get("HTTP_TIMEOUT", "20") or 20)
-MIN_DELAY = float(get("MIN_DELAY", "1.1") or 1.1)
-MAX_DELAY = float(get("MAX_DELAY", "4.0") or 4.0)
-WORKERS = int(get("WORKERS", "2") or 2)
-MAX_RETRY = int(get("MAX_RETRY", "4") or 4)
+PROXY = get("PROXY", "")
+
+HTTP_TIMEOUT = geti("HTTP_TIMEOUT", 20) or 20
+MIN_DELAY = getf("MIN_DELAY", 1.1) or 1.1
+MAX_DELAY = getf("MAX_DELAY", 4.0) or 4.0
+WORKERS = geti("WORKERS", 2) or 2
+
+MAX_ATTEMPTS = geti("MAX_ATTEMPTS", 3) or 3
+RETRY_DELAY = getf("RETRY_DELAY", 20.0)
+CAPTCHA_DELAY = getf("CAPTCHA_DELAY", 90.0)
+
+BACKUP_EVERY = geti("BACKUP_EVERY", 600) or 600
+BACKUP_FULL = str(get("BACKUP_FULL", "1")).strip() not in ("0", "false", "False")
 
 DB_PATH = os.path.join(DATA, "rbx.db")
 PWFILE = os.path.join(DATA, "passwords.txt")
