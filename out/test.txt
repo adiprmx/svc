@@ -7,7 +7,7 @@ semua modul ke-import
 
 === csrf ===
 GET /v2/login -> 404 | x-csrf-token: False
-(csrf) 0.2s
+(csrf) 0.1s
 
 === users ===
 users/1 -> 200 | Roblox
@@ -17,7 +17,7 @@ users/1 -> 200 | Roblox
 login Roblox/WinInet                                 -> 403 denied
 login Roblox/2.616.551 (Android; Android 12; SM-G991 -> 403 denied
 login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 denied
-(ua-variants) 5.1s
+(ua-variants) 5.0s
 
 === captcha-rate ===
   attempt 1 -> denied
@@ -29,7 +29,7 @@ login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 denied
   attempt 7 -> denied
   attempt 8 -> denied
 CAPTCHA-RATE dari IP ini: {'denied': 8}
-(captcha-rate) 11.2s
+(captcha-rate) 10.9s
 
 === store ===
 FAIL:
@@ -47,12 +47,12 @@ NameError: name 'u' is not defined
 
 === pack ===
 pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (18 KB) 
-svc.py ada: True 18491
+svc.py ada: True 18512
 (pack) 0.0s
 
 === smoke: svc.py (packed) ===
-  File "/home/runner/work/svc/svc/svc.py", line 40
-    cOTvw/8wbFUzII/0+s+pTa/FH7t0EJK+tv9I/s/0s5YK3l3laUYHGaeRlhEWu2DeCS8uTINfvGh3
-          ^
-SyntaxError: invalid decimal literal
+  File "/home/runner/work/svc/svc/svc.py", line 39
+    p3Gpu6v+CBTHQICqV7CHn0xQfcFF+1JfCdqqSK1GBN4lUeXPsaETOFOSruF0hxamCuzGooAYNdoX
+                                  ^
+SyntaxError: invalid imaginary literal
 exit=1
