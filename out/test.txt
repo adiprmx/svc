@@ -2,22 +2,29 @@
 === env ===
 python 3.12.15 | UA: Roblox/WinInet
 BASE: /home/runner/work/svc/svc
-semua modul ke-import
+FAIL:
+Traceback (most recent call last):
+  File "/home/runner/work/svc/svc/src/selftest.py", line 18, in step
+    fn()
+  File "/home/runner/work/svc/svc/src/selftest.py", line 29, in t_env
+    __import__(m)
+ModuleNotFoundError: No module named 'worker'
+
 (env) 0.0s
 
 === csrf ===
 GET /v2/login -> 404 | x-csrf-token: False
-(csrf) 0.2s
+(csrf) 0.4s
 
 === users ===
 users/1 -> 200 | Roblox
-(users) 0.1s
+(users) 0.5s
 
 === ua-variants ===
 login Roblox/WinInet                                 -> 403 denied
 login Roblox/2.616.551 (Android; Android 12; SM-G991 -> 403 denied
 login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 denied
-(ua-variants) 5.1s
+(ua-variants) 5.3s
 
 === captcha-rate ===
   attempt 1 -> denied
@@ -29,7 +36,7 @@ login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 denied
   attempt 7 -> denied
   attempt 8 -> denied
 CAPTCHA-RATE dari IP ini: {'denied': 8}
-(captcha-rate) 11.1s
+(captcha-rate) 12.1s
 
 === store ===
 users: 1 | pending: 1
@@ -39,13 +46,13 @@ hits: []
 (store) 0.0s
 
 === pack ===
-pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (22 KB) 
-svc.py ada: True 23235
-(pack) 0.0s
+pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (21 KB) 
+svc.py ada: True 21814
+(pack) 0.1s
 
 === smoke: svc.py (packed) ===
-  File "/home/runner/work/svc/svc/svc.py", line 40
-    +bm2tK0mNkzkzJUnRfFqXtabUbrF0/2eRcYyxOG2cLU7bguN5PMA7qf4VhhoDT2A+buU8cxEDVrE
-                                  ^
+  File "/home/runner/work/svc/svc/svc.py", line 42
+    8NPP5O+ibKa03MQYAMmaRtklT8JMZbvRglryiZPXvCAhlQidT5IxTRhXGkRC+XG8QA/7TXslJ8wt
+    ^
 SyntaxError: invalid decimal literal
 exit=1
