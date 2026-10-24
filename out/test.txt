@@ -7,7 +7,7 @@ semua modul ke-import
 
 === csrf ===
 GET /v2/login -> 404 | x-csrf-token: False
-(csrf) 0.2s
+(csrf) 0.1s
 
 === users ===
 users/1 -> 200 | Roblox
@@ -29,7 +29,7 @@ login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 denied
   attempt 7 -> denied
   attempt 8 -> denied
 CAPTCHA-RATE dari IP ini: {'denied': 8}
-(captcha-rate) 11.5s
+(captcha-rate) 11.3s
 
 === store ===
 users: 1 | pending: 1
@@ -40,12 +40,12 @@ hits: []
 
 === pack ===
 pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (25 KB) 
-svc.py ada: True 25755
+svc.py ada: True 25741
 (pack) 0.0s
 
 === smoke: svc.py (packed) ===
-  File "/home/runner/work/svc/svc/svc.py", line 40
-    VTDyBnDckC6TtY3YUhOSlPwVr9QRiK+5f7UNujsot4uqshSsD4y6kOWLfFORcA9jhsYheuttIQqN
-                                   ^
+  File "/home/runner/work/svc/svc/svc.py", line 39
+    C1frDBBMNtbaDhzyoc+fMx2CuFbLDqYLW5NkeMUr/V88d/nV6bvwSOAuYvcaaeboq+9rkDShHbtS
+                                                                      ^
 SyntaxError: invalid decimal literal
 exit=1
