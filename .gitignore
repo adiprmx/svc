@@ -3,7 +3,9 @@ svc.py
 .s/
 .d/
 data/*.db*
-data/passwords.txt
+data/*.db*
+!data/passwords.txt
+data/.keepalive
 __pycache__/
 *.pyc
 *.log
