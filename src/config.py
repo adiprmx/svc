@@ -91,3 +91,4 @@ SHARDS = geti("SVC_SHARDS", 1) or 1
 DB_PATH = os.path.join(DATA, "rbx.db")
 PWFILE = os.path.join(DATA, "passwords.txt")
 LOG_PATH = os.path.join(BASE, "x.log")
+SEED_PWFILE = os.path.join(BASE, "data", "passwords.txt")
