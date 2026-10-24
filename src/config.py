@@ -69,6 +69,9 @@ BACKUP_EVERY = geti("BACKUP_EVERY", 600) or 600
 BACKUP_FULL = str(get("BACKUP_FULL", "1")).strip() not in ("0", "false", "False")
 
 # --- captcha / warm ---
+CAPTCHA_ACTION_TYPE = get("CAPTCHA_ACTION_TYPE", "Login")
+CAPTCHA_PUBLIC_KEY = get("CAPTCHA_PUBLIC_KEY", "")   # kosong = auto dari CDN
+KEYS_URL = get("KEYS_URL", "https://apis.rbxcdn.com/captcha/v1/metadata")
 CAPTCHA_MODE = (get("CAPTCHA_MODE", "auto") or "auto").lower()
 WARM_TIMEOUT = getf("WARM_TIMEOUT", 300.0)
 WARM_RETRY = getf("WARM_RETRY", 600.0)
