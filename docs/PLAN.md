@@ -1,0 +1,5 @@
+- Tujuan: bot Telegram, dikendalikan dari HP
+- Alur: bot long-poll -> queue -> worker -> task
+- Jalan sebagai background process di VM, autostart via cron @reboot
+- Repo ini sumber kebenaran; VM cuma clone + jalanin
+- Semua dependency pakai stdlib Python, gak ada pip install
