@@ -7,17 +7,17 @@ semua modul ke-import
 
 === csrf ===
 GET /v2/login -> 404 | x-csrf-token: False
-(csrf) 0.1s
+(csrf) 0.2s
 
 === users ===
 users/1 -> 200 | Roblox
-(users) 0.1s
+(users) 0.2s
 
 === ua-variants ===
 login Roblox/WinInet                                 -> 403 denied
 login Roblox/2.616.551 (Android; Android 12; SM-G991 -> 403 denied
 login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 denied
-(ua-variants) 5.0s
+(ua-variants) 5.2s
 
 === captcha-rate ===
   attempt 1 -> denied
@@ -29,30 +29,23 @@ login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 denied
   attempt 7 -> denied
   attempt 8 -> denied
 CAPTCHA-RATE dari IP ini: {'denied': 8}
-(captcha-rate) 11.0s
+(captcha-rate) 11.4s
 
 === store ===
-FAIL:
-Traceback (most recent call last):
-  File "/home/runner/work/svc/svc/src/selftest.py", line 18, in step
-    fn()
-  File "/home/runner/work/svc/svc/src/selftest.py", line 77, in t_store
-    store.add_users([(1, "roblox", "Roblox", "2006-02-27T00:00:00Z", time.time())])
-  File "/home/runner/work/svc/svc/src/store.py", line 50, in add_users
-    [(_k(u), ) and r for r in rows])
-         ^
-NameError: name 'u' is not defined
-
+users: 1 | pending: 1
+claim: {'username': 'roblox', 'password': 'x', 'attempts': 1}
+requeue -> dead | pending: 0
+hits: []
 (store) 0.0s
 
 === pack ===
-pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (19 KB) 
-svc.py ada: True 19630
+pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (20 KB) 
+svc.py ada: True 21413
 (pack) 0.0s
 
 === smoke: svc.py (packed) ===
   File "/home/runner/work/svc/svc/svc.py", line 40
-    +Xj5qDsBImaQKV+DuH2u9SsAlrjpp9+NJXjzHpy26QSBQkuOrXdJLgCYBmFUCWNhj+6kTxrs9Vvk
-                                                                      ^
+    rwqkC+DIAlIhQFz8ODltzj/LA49VY+DUKkCVTOnq1lv0G+2y1u5KCcoxKMfdcDz6pDP6qkCLA8bW
+                                                  ^
 SyntaxError: invalid decimal literal
 exit=1
