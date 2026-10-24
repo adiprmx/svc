@@ -4,17 +4,18 @@ import config, store
 
 
 def load_passwords(path=None):
-    path = path or config.PWFILE
-    if not os.path.exists(path):
-        return []
-    out = []
-    with open(path, encoding="utf-8", errors="ignore") as f:
-        for line in f:
-            p = line.rstrip("\r\n")
-            if p:
-                out.append(p)
+    paths = [path] if path else [config.SEED_PWFILE, config.PWFILE]
+    out, seen = [], set()
+    for p in paths:
+        if not p or not os.path.exists(p):
+            continue
+        with open(p, encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                v = line.rstrip("\r\n")
+                if v and v not in seen:
+                    seen.add(v)
+                    out.append(v)
     return out
-
 
 def save_passwords(pw):
     seen, out = set(), []
