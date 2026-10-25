@@ -17,6 +17,7 @@ def load_passwords(path=None):
                     out.append(v)
     return out
 
+
 def save_passwords(pw):
     seen, out = set(), []
     for p in pw:
@@ -48,23 +49,14 @@ def generate(mode="spray", pw_limit=None, user_limit=None, cap=None, chunk=10000
             total += len(batch)
             batch = []
 
-    if mode == "spray":
-        for p in pw:
-            for u in users:
-                batch.append((u, p, now))
-                if len(batch) >= chunk:
-                    flush()
-                if cap and total >= cap:
-                    flush()
-                    return total, len(users), len(pw)
-    else:
-        for u in users:
-            for p in pw:
-                batch.append((u, p, now))
-                if len(batch) >= chunk:
-                    flush()
-                if cap and total >= cap:
-                    flush()
-                    return total, len(users), len(pw)
+    pairs = ((p, u) for p in pw for u in users) if mode == "spray" \
+        else ((u, p) for u in users for p in pw)
+    for a, b in pairs:
+        batch.append((a, b, now) if mode == "spray" else (a, b, now))
+        if len(batch) >= chunk:
+            flush()
+        if cap and total >= cap:
+            flush()
+            return total, len(users), len(pw)
     flush()
     return total, len(users), len(pw)
