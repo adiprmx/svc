@@ -3,7 +3,7 @@
 python 3.12.15 | UA: Roblox/WinInet
 BASE: /home/runner/work/svc/svc
 semua modul ke-import
-(env) 0.1s
+(env) 0.0s
 
 === csrf ===
 GET /v2/login -> 404 | x-csrf-token: False
@@ -14,22 +14,22 @@ users/1 -> 200 | Roblox
 (users) 0.3s
 
 === ua-variants ===
-login Roblox/WinInet                                 -> 403 denied
-login Roblox/2.616.551 (Android; Android 12; SM-G991 -> 403 denied
-login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 denied
-(ua-variants) 5.0s
+login Roblox/WinInet                                 -> 403 csrf
+login Roblox/2.616.551 (Android; Android 12; SM-G991 -> 403 csrf
+login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 csrf
+(ua-variants) 5.2s
 
 === captcha-rate ===
-  attempt 1 -> denied
-  attempt 2 -> denied
-  attempt 3 -> denied
-  attempt 4 -> denied
-  attempt 5 -> denied
-  attempt 6 -> denied
-  attempt 7 -> denied
-  attempt 8 -> denied
-CAPTCHA-RATE dari IP ini: {'denied': 8}
-(captcha-rate) 11.0s
+  attempt 1 -> csrf
+  attempt 2 -> csrf
+  attempt 3 -> csrf
+  attempt 4 -> csrf
+  attempt 5 -> csrf
+  attempt 6 -> csrf
+  attempt 7 -> csrf
+  attempt 8 -> csrf
+CAPTCHA-RATE dari IP ini: {'csrf': 8}
+(captcha-rate) 11.1s
 
 === store ===
 users: 1 | pending: 1
@@ -40,31 +40,49 @@ hits: []
 
 === pack ===
 pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (31 KB) 
-svc.py ada: True 31996
+svc.py ada: True 32421
 (pack) 0.0s
 
 === smoke: svc.py (packed) ===
 ==============================================
- svc doctor
+ svc doctor v2
 ==============================================
 python=3.12.15 mode=worker
 BASE=/home/runner/work/svc/svc
-BOT_TOKEN=-
+BOT_TOKEN=- (len=0)
 OWNER_ID=(belum di-set) auto_owner=True
 UA=Roblox/WinInet workers=2 captcha=auto
 ----------------------------------------------
+[info] token len=0 ascii=True bot_id=
 [FAIL] BOT_TOKEN kosong
 ----------------------------------------------
-[info] outbound IP: 64.236.142.226
+[info] outbound IP: 172.203.254.209
 [ OK ] users/1 -> 200
 ----------------------------------------------
-[minimal/Roblox/WinIn] -> 403 denied | cf=- | ct=application/json; charse
-[minimal/Mozilla/5.0 ] -> 403 denied | cf=- | ct=application/json; charse
-[browser+sec/Roblox/WinIn] -> 403 denied | cf=- | ct=application/json; charse
-[browser+sec/Mozilla/5.0 ] -> 403 denied | cf=- | ct=application/json; charse
-[FAIL] semua profil ditolak -> kemungkinan WAF/IP. cek baris body di atas
+== csrf probe ==
+  POST   auth.roblox.com/v2/login                   -> 403 csrf=ADA
+  POST   auth.roblox.com/v2/logout                  -> 401 csrf=kosong
+  POST   auth.roblox.com/v2/logout                  -> 401 csrf=kosong
+  POST   www.roblox.com/mobileapi/logout            -> 404 csrf=kosong
+[ OK ] csrf probe: https://auth.roblox.com/v2/login
+----------------------------------------------
+2026-10-25 03:44:46,103 INFO svc.rblx csrf didapat dari https://auth.roblox.com/v2/login
+[minimal/Roblox/Win] -> 403 captcha | csrf=ada
+2026-10-25 03:44:47,170 INFO svc.rblx csrf didapat dari https://auth.roblox.com/v2/login
+[minimal/Mozilla/5.] -> 403 captcha | csrf=ada
+2026-10-25 03:44:48,209 INFO svc.rblx csrf didapat dari https://auth.roblox.com/v2/login
+[browser+sec/Roblox/Win] -> 403 captcha | csrf=ada
+2026-10-25 03:44:49,184 INFO svc.rblx csrf didapat dari https://auth.roblox.com/v2/login
+[browser+sec/Mozilla/5.] -> 403 captcha | csrf=ada
+[ OK ] fingerprint: minimal/Roblox/Win
 ----------------------------------------------
 [WARN] BOT_TOKEN kosong
 HASIL: ADA MASALAH
 ==============================================
-2026-10-25 02:30:49,738 WARNING svc doctor gagal -> set SVC_FORCE=1 buat lanjut paksa
+2026-10-25 03:44:50,086 WARNING svc doctor ada masalah -> SVC_FORCE=1 buat lanjut paksa
+2026-10-25 03:44:50,089 INFO svc restore: 0 hits
+2026-10-25 03:44:50,090 INFO svc regen 0 combo
+2026-10-25 03:44:50,092 INFO svc svc up mode=worker workers=2 shard=0/1 captcha=auto
+2026-10-25 03:44:50,252 INFO svc.rblx csrf didapat dari https://auth.roblox.com/v2/login
+2026-10-25 03:44:50,257 INFO svc.rblx csrf didapat dari https://auth.roblox.com/v2/login
+2026-10-25 03:45:10,095 INFO svc svc down

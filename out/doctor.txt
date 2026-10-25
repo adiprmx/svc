@@ -1,17 +1,16 @@
 ==============================================
  svc doctor v2
 ==============================================
-python=3.14.8 mode=full
-BASE=/data/data/com.termux/files/home/svc
-BOT_TOKEN=888540...DHe4 (len=46)
+python=3.12.15 mode=worker
+BASE=/home/runner/work/svc/svc
+BOT_TOKEN=- (len=0)
 OWNER_ID=(belum di-set) auto_owner=True
-UA=Roblox/WinInet workers=2 captcha=blast
+UA=Roblox/WinInet workers=2 captcha=auto
 ----------------------------------------------
-[info] token len=46 ascii=True bot_id=8885405754
-[ OK ] token valid, bot = @hirooxbot
-[info] belum ada pesan antre (kirim /start ke bot dulu)
+[info] token len=0 ascii=True bot_id=
+[FAIL] BOT_TOKEN kosong
 ----------------------------------------------
-[info] outbound IP: 103.157.79.1
+[info] outbound IP: 172.203.254.209
 [ OK ] users/1 -> 200
 ----------------------------------------------
 == csrf probe ==
@@ -27,5 +26,6 @@ UA=Roblox/WinInet workers=2 captcha=blast
 [browser+sec/Mozilla/5.] -> 403 captcha | csrf=ada
 [ OK ] fingerprint: minimal/Roblox/Win
 ----------------------------------------------
-HASIL: SIAP
+[WARN] BOT_TOKEN kosong
+HASIL: ADA MASALAH
 ==============================================
