@@ -1,25 +1,29 @@
-import json, urllib.request
+import json, logging, urllib.request
 
 import config, store
 
+log = logging.getLogger("svc.backup")
 FILE = "rbx-backup-%d.json"
 
 
 def _hdr():
     return {"Authorization": "Bearer " + config.GITHUB_TOKEN,
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "svc"}
+            "Accept": "application/vnd.github+json", "User-Agent": "svc"}
 
 
 def _url():
     return "https://api.github.com/gists/" + config.GIST_ID
 
 
+def enabled():
+    return bool(config.GITHUB_TOKEN and config.GIST_ID)
+
+
 def run():
-    if not (config.GITHUB_TOKEN and config.GIST_ID):
+    if not enabled():
         return False
-    name = FILE % config.SHARD
-    payload = json.dumps({"files": {name: {"content": store.export(config.BACKUP_FULL)}}}).encode()
+    payload = json.dumps({"files": {FILE % config.SHARD: {
+        "content": store.export(config.BACKUP_FULL)}}}).encode()
     req = urllib.request.Request(_url(), data=payload, method="PATCH",
                                 headers=dict(_hdr(), **{"Content-Type": "application/json"}))
     with urllib.request.urlopen(req, timeout=120) as r:
@@ -27,7 +31,7 @@ def run():
 
 
 def restore():
-    if not (config.GITHUB_TOKEN and config.GIST_ID):
+    if not enabled():
         return 0
     req = urllib.request.Request(_url(), headers=_hdr())
     with urllib.request.urlopen(req, timeout=120) as r:
@@ -46,6 +50,6 @@ def restore():
         if content:
             try:
                 total += store.restore(content)
-            except Exception:
-                pass
+            except Exception as e:
+                log.warning("restore %s gagal: %r", name, e)
     return total
