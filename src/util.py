@@ -4,8 +4,11 @@ log = logging.getLogger("svc.http")
 
 
 class Session:
-    def __init__(self, ua, timeout=20, proxy=None):
-        self.ua, self.timeout, self.proxy = ua, timeout, proxy
+    def __init__(self, ua=None, timeout=20, proxy=None):
+        import config
+        self.ua = ua or config.UA
+        self.timeout = timeout or config.HTTP_TIMEOUT
+        self.proxy = proxy if proxy is not None else (config.PROXY or None)
         self.csrf = None
         self.extra = {}
         self.jar = http.cookiejar.CookieJar()
@@ -14,27 +17,19 @@ class Session:
     def _build(self):
         handlers = [urllib.request.HTTPCookieProcessor(self.jar)]
         if self.proxy:
-            handlers.append(urllib.request.ProxyHandler({"http": self.proxy, "https": self.proxy}))
+            handlers.append(urllib.request.ProxyHandler({"http": self.proxy,
+                                                         "https": self.proxy}))
         self.opener = urllib.request.build_opener(*handlers)
 
     def clear_cookies(self):
         self.jar.clear()
         self.csrf = None
-        
+
     def drop_cookie(self, name):
-        """Hapus satu cookie, sisanya (csrf/trust cookie) tetep hidup."""
         keep = [c for c in self.jar if c.name != name]
         self.jar.clear()
         for c in keep:
             self.jar.set_cookie(c)
-
-    def probe_csrf(self, url, method="POST", body=None):
-        """Ambil x-csrf-token dari endpoint manapun, return tokennya."""
-        try:
-            self.request(method, url, body)
-        except Exception:
-            pass
-        return self.csrf
 
     def cookie(self, name):
         for c in self.jar:
@@ -45,6 +40,13 @@ class Session:
     @property
     def roblosecurity(self):
         return self.cookie(".ROBLOSECURITY")
+
+    def probe_csrf(self, url, method="POST", body=None):
+        try:
+            self.request(method, url, body)
+        except Exception:
+            pass
+        return self.csrf
 
     def request(self, method, url, body=None, headers=None):
         h = {"User-Agent": self.ua,
@@ -69,7 +71,7 @@ class Session:
             code, hdr, raw = e.code, e.headers, e.read()
         except Exception as e:
             log.debug("req fail %s %s: %r", method, url, e)
-            return 0, {}, "", {"error": repr(e)}
+            return 0, {}, "", None
 
         if hdr.get("Content-Encoding") == "gzip":
             try:
