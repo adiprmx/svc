@@ -7,11 +7,11 @@ semua modul ke-import
 
 === csrf ===
 GET /v2/login -> 404 | x-csrf-token: False
-(csrf) 0.2s
+(csrf) 0.3s
 
 === users ===
 users/1 -> 200 | Roblox
-(users) 0.3s
+(users) 0.2s
 
 === ua-variants ===
 login Roblox/WinInet                                 -> 403 denied
@@ -29,22 +29,42 @@ login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 denied
   attempt 7 -> denied
   attempt 8 -> denied
 CAPTCHA-RATE dari IP ini: {'denied': 8}
-(captcha-rate) 11.1s
+(captcha-rate) 11.3s
 
 === store ===
 users: 1 | pending: 1
-claim: {'username': 'roblox', 'password': 'x', 'attempts': 1}
+claim: {'username': 'roblox', 'password': 'x'}
 requeue -> dead | pending: 0
 hits: []
 (store) 0.0s
 
 === pack ===
-pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (28 KB) 
-svc.py ada: True 29579
+pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (31 KB) 
+svc.py ada: True 31981
 (pack) 0.0s
 
 === smoke: svc.py (packed) ===
-2026-10-25 02:22:14,675 INFO svc restore: 0 hits
-2026-10-25 02:22:14,675 INFO svc regen 0 combo
-2026-10-25 02:22:14,676 INFO svc svc up mode=worker workers=2 shard=0/1 captcha=auto
-2026-10-25 02:22:34,678 INFO svc svc down
+==============================================
+ svc doctor
+==============================================
+python=3.12.15 mode=worker
+BASE=/home/runner/work/svc/svc
+BOT_TOKEN=-
+OWNER_ID=(belum di-set) auto_owner=True
+UA=Roblox/WinInet workers=2 captcha=auto
+----------------------------------------------
+[FAIL] BOT_TOKEN kosong
+----------------------------------------------
+[info] outbound IP: 172.212.205.228
+[ OK ] users/1 -> 200
+----------------------------------------------
+[minimal/Roblox/WinIn] -> 403 denied | cf=- | ct=application/json; charse
+[minimal/Mozilla/5.0 ] -> 403 denied | cf=- | ct=application/json; charse
+[browser+sec/Roblox/WinIn] -> 403 denied | cf=- | ct=application/json; charse
+[browser+sec/Mozilla/5.0 ] -> 403 denied | cf=- | ct=application/json; charse
+[FAIL] semua profil ditolak -> kemungkinan WAF/IP. cek baris body di atas
+----------------------------------------------
+[WARN] BOT_TOKEN kosong
+HASIL: ADA MASALAH
+==============================================
+2026-10-25 02:28:39,223 WARNING svc doctor gagal -> set SVC_FORCE=1 buat lanjut paksa

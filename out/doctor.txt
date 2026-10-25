@@ -1,0 +1,23 @@
+==============================================
+ svc doctor
+==============================================
+python=3.12.15 mode=worker
+BASE=/home/runner/work/svc/svc
+BOT_TOKEN=-
+OWNER_ID=(belum di-set) auto_owner=True
+UA=Roblox/WinInet workers=2 captcha=auto
+----------------------------------------------
+[FAIL] BOT_TOKEN kosong
+----------------------------------------------
+[info] outbound IP: 172.212.205.228
+[ OK ] users/1 -> 200
+----------------------------------------------
+[minimal/Roblox/WinIn] -> 403 denied | cf=- | ct=application/json; charse
+[minimal/Mozilla/5.0 ] -> 403 denied | cf=- | ct=application/json; charse
+[browser+sec/Roblox/WinIn] -> 403 denied | cf=- | ct=application/json; charse
+[browser+sec/Mozilla/5.0 ] -> 403 denied | cf=- | ct=application/json; charse
+[FAIL] semua profil ditolak -> kemungkinan WAF/IP. cek baris body di atas
+----------------------------------------------
+[WARN] BOT_TOKEN kosong
+HASIL: ADA MASALAH
+==============================================
