@@ -1,6 +1,6 @@
 import logging, os, signal, threading, time
 
-import backup, bot, config, store, worker
+import backup, bot, config, doctor, store, worker
 
 stop = threading.Event()
 
@@ -17,13 +17,20 @@ def main():
     setup_log()
     log = logging.getLogger("svc")
 
-    mode = (os.environ.get("SVCMODE") or "full").lower()
-    duration = int(os.environ.get("SVC_DURATION") or 0)
+    if config.DOCTOR and config.MODE != "quiet":
+        try:
+            ok = doctor.preflight()
+            if not ok and not config.FORCE:
+                log.warning("doctor gagal -> set SVC_FORCE=1 buat lanjut paksa")
+                if not config.BOT_TOKEN:
+                    return
+        except Exception as e:
+            log.warning("doctor error: %r", e)
 
     store.init(config.DB_PATH)
     store.set_shard(config.SHARD, config.SHARDS)
 
-    if mode == "worker":
+    if config.MODE == "worker":
         try:
             log.info("restore: %d hits", backup.restore())
         except Exception as e:
@@ -39,16 +46,27 @@ def main():
     store.reset_running()
 
     pool = worker.Pool(config.WORKERS, stop)
-    if mode == "worker":
+    if config.MODE == "worker":
         pool.paused = False
     pool.start()
 
     b = None
-    if mode != "worker" or os.environ.get("WORKER_BOT"):
-        if config.BOT_TOKEN and config.OWNER_ID:
-            b = bot.Bot(config.BOT_TOKEN, config.OWNER_ID, stop, pool)
+    if config.MODE != "worker" or os.environ.get("WORKER_BOT"):
+        if config.BOT_TOKEN:
+            owner = config.OWNER_ID
+            if not owner:
+                try:
+                    with open(config.OWNER_FILE) as f:
+                        owner = int(f.read().strip())
+                except Exception:
+                    owner = 0
+            b = bot.Bot(config.BOT_TOKEN, owner, stop, pool)
             pool.notify = b.send
             threading.Thread(target=b.run, daemon=True).start()
+            log.info("bot ON: %s... owner=%s auto=%s",
+                     config.BOT_TOKEN[:12], owner or "(nunggu chat pertama)", config.AUTO_OWNER)
+        else:
+            log.warning("bot OFF: BOT_TOKEN kosong")
 
     def bg():
         while not stop.is_set():
@@ -65,20 +83,20 @@ def main():
     if b:
         try:
             b.send("svc online | mode=%s workers=%d shard=%d/%d captcha=%s" % (
-                mode, config.WORKERS, config.SHARD, config.SHARDS, pool.mode))
-        except Exception:
-            pass
+                config.MODE, config.WORKERS, config.SHARD, config.SHARDS, pool.mode))
+            log.info("svc online terkirim")
+        except Exception as e:
+            log.warning("svc online gagal: %r", e)
 
     log.info("svc up mode=%s workers=%d shard=%d/%d captcha=%s",
-             mode, config.WORKERS, config.SHARD, config.SHARDS, pool.mode)
-    if duration:
-        t0 = time.time()
-        while not stop.is_set() and time.time() - t0 < duration:
-            time.sleep(1)
-        stop.set()
-    else:
-        while not stop.is_set():
-            time.sleep(1)
+             config.MODE, config.WORKERS, config.SHARD, config.SHARDS, pool.mode)
+
+    t0 = time.time()
+    while not stop.is_set():
+        if config.DURATION and time.time() - t0 > config.DURATION:
+            break
+        time.sleep(1)
+    stop.set()
 
     try:
         backup.run()
