@@ -49,10 +49,12 @@ def generate(mode="spray", pw_limit=None, user_limit=None, cap=None, chunk=10000
             total += len(batch)
             batch = []
 
-    pairs = ((p, u) for p in pw for u in users) if mode == "spray" \
-        else ((u, p) for u in users for p in pw)
+    if mode == "spray":
+        pairs = ((p, u) for p in pw for u in users)
+    else:
+        pairs = ((u, p) for u in users for p in pw)
     for a, b in pairs:
-        batch.append((a, b, now) if mode == "spray" else (a, b, now))
+        batch.append((a, b, now))
         if len(batch) >= chunk:
             flush()
         if cap and total >= cap:

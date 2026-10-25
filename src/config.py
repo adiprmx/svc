@@ -1,4 +1,4 @@
-import os
+import os, re
 
 BASE = os.environ.get("SVCHOME") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, ".d")
@@ -32,6 +32,11 @@ def _clean(v):
     return v.strip() if isinstance(v, str) else v
 
 
+def _san(v):
+    """Buang karakter invisible (zero-width, BOM, newline) dari kredensial."""
+    return re.sub(r"[^0-9A-Za-z_:\-]", "", v or "")
+
+
 def get(key, default=""):
     key = key.upper()
     for src in (_SECRET, E, os.environ):
@@ -45,7 +50,7 @@ def get(key, default=""):
 
 
 def geti(key, default=0):
-    s = str(get(key, default)).strip()
+    s = _san(str(get(key, default))).strip()
     try:
         return int(s)
     except Exception:
@@ -57,7 +62,7 @@ def geti(key, default=0):
 
 def getf(key, default=0.0):
     try:
-        return float(str(get(key, default)).strip())
+        return float(_san(str(get(key, default))) or default)
     except Exception:
         return default
 
@@ -67,14 +72,12 @@ def getb(key, default=False):
     return v not in ("0", "false", "no", "off", "")
 
 
-# --- kredensial ---
-BOT_TOKEN = get("BOT_TOKEN")
+BOT_TOKEN = _san(get("BOT_TOKEN"))
 OWNER_ID = geti("OWNER_ID", 0)
 AUTO_OWNER = getb("AUTO_OWNER", True)
-GITHUB_TOKEN = get("GITHUB_TOKEN")
-GIST_ID = get("GIST_ID")
+GITHUB_TOKEN = _san(get("GITHUB_TOKEN"))
+GIST_ID = _san(get("GIST_ID"))
 
-# --- http ---
 UA = get("USER_AGENT", "Roblox/WinInet")
 PROXY = get("PROXY", "")
 HTTP_TIMEOUT = geti("HTTP_TIMEOUT", 20) or 20
@@ -84,17 +87,14 @@ WORKERS = geti("WORKERS", 2) or 2
 ROTATE_UA = getb("ROTATE_UA", False)
 FARM_THREADS = geti("FARM_THREADS", 4) or 4
 
-# --- retry ---
 MAX_ATTEMPTS = geti("MAX_ATTEMPTS", 3) or 3
 RETRY_DELAY = getf("RETRY_DELAY", 20.0)
 CAPTCHA_DELAY = getf("CAPTCHA_DELAY", 90.0)
 MAX_CAPTCHA_TRIES = geti("MAX_CAPTCHA_TRIES", 5) or 5
 
-# --- backup ---
 BACKUP_EVERY = geti("BACKUP_EVERY", 600) or 600
 BACKUP_FULL = getb("BACKUP_FULL", True)
 
-# --- captcha / warm ---
 CAPTCHA_MODE = (get("CAPTCHA_MODE", "auto") or "auto").lower()
 CAPTCHA_ACTION_TYPE = get("CAPTCHA_ACTION_TYPE", "Login")
 CAPTCHA_PUBLIC_KEY = get("CAPTCHA_PUBLIC_KEY", "")
@@ -105,7 +105,6 @@ WARM_PAGE = get("WARM_PAGE", "https://adiprmx.github.io/svc/warm.html")
 CAPTCHA_BREAKER_WINDOW = geti("CAPTCHA_BREAKER_WINDOW", 10) or 10
 CAPTCHA_BREAKER_RATE = getf("CAPTCHA_BREAKER_RATE", 0.5)
 
-# --- mode / shard ---
 MODE = (os.environ.get("SVCMODE") or get("SVCMODE", "full") or "full").lower()
 DURATION = geti("SVC_DURATION", 0)
 SHARD = geti("SVC_SHARD", 0)
@@ -124,19 +123,18 @@ def problems():
     out = []
     if not BOT_TOKEN:
         out.append("BOT_TOKEN kosong")
-    elif ":" not in BOT_TOKEN:
-        out.append("BOT_TOKEN formatnya aneh (harus ada ':')")
+    elif ":" not in BOT_TOKEN or len(BOT_TOKEN) < 40:
+        out.append("BOT_TOKEN format aneh (len=%d)" % len(BOT_TOKEN))
     if not AUTO_OWNER and not OWNER_ID:
-        out.append("OWNER_ID 0 dan AUTO_OWNER mati -> bot gak bisa balas siapapun")
+        out.append("OWNER_ID 0 dan AUTO_OWNER mati")
     return out
 
 
 def describe():
     def mask(v):
-        if not v:
-            return "-"
-        return v[:6] + "..." + v[-4:] if len(v) > 12 else v
-    return ("python=%s mode=%s\nBASE=%s\nBOT_TOKEN=%s\nOWNER_ID=%s auto_owner=%s\n"
-            "UA=%s workers=%d captcha=%s" % (
-                os.sys.version.split()[0], MODE, BASE, mask(BOT_TOKEN),
+        return "-" if not v else (v[:6] + "..." + v[-4:] if len(v) > 12 else v)
+    import sys
+    return ("python=%s mode=%s\nBASE=%s\nBOT_TOKEN=%s (len=%d)\nOWNER_ID=%s "
+            "auto_owner=%s\nUA=%s workers=%d captcha=%s" % (
+                sys.version.split()[0], MODE, BASE, mask(BOT_TOKEN), len(BOT_TOKEN),
                 OWNER_ID or "(belum di-set)", AUTO_OWNER, UA, WORKERS, CAPTCHA_MODE))

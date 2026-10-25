@@ -17,13 +17,11 @@ def main():
     setup_log()
     log = logging.getLogger("svc")
 
-    if config.DOCTOR and config.MODE != "quiet":
+    if config.DOCTOR:
         try:
             ok = doctor.preflight()
             if not ok and not config.FORCE:
-                log.warning("doctor gagal -> set SVC_FORCE=1 buat lanjut paksa")
-                if not config.BOT_TOKEN:
-                    return
+                log.warning("doctor ada masalah -> SVC_FORCE=1 buat lanjut paksa")
         except Exception as e:
             log.warning("doctor error: %r", e)
 
@@ -80,7 +78,7 @@ def main():
     signal.signal(signal.SIGTERM, lambda *a: stop.set())
     signal.signal(signal.SIGINT, lambda *a: stop.set())
 
-    if b:
+    if b and b.chat:
         try:
             b.send("svc online | mode=%s workers=%d shard=%d/%d captcha=%s" % (
                 config.MODE, config.WORKERS, config.SHARD, config.SHARDS, pool.mode))

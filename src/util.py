@@ -42,6 +42,10 @@ class Session:
         return self.cookie(".ROBLOSECURITY")
 
     def probe_csrf(self, url, method="POST", body=None):
+        """POST HARUS pakai body {} biar Content-Type kebentuk dan Roblox
+        mau ngasih header x-csrf-token."""
+        if body is None and method.upper() == "POST":
+            body = {}
         try:
             self.request(method, url, body)
         except Exception:

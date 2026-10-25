@@ -16,7 +16,13 @@ UAS = [
     "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
 ]
 
-CSRF_PROBES = [("POST", AUTH + "/v2/login"), ("POST", AUTH + "/v2/logout")]
+# (method, url, body) -- body WAJIB {} biar x-csrf-token dibalikin
+CSRF_PROBES = [
+    ("POST", AUTH + "/v2/login", {}),
+    ("POST", AUTH + "/v2/logout", {}),
+    ("POST", AUTH + "/v2/logout", None),
+    ("POST", "https://www.roblox.com/mobileapi/logout", {}),
+]
 
 BROWSER_HDR = {"Origin": "https://www.roblox.com", "Referer": "https://www.roblox.com/"}
 
@@ -105,13 +111,15 @@ class Roblox:
         self.challenge = None
 
     def csrf(self):
-        for method, url in CSRF_PROBES:
+        for method, url, body in CSRF_PROBES:
             try:
-                self.s.request(method, url)
+                self.s.request(method, url, body)
             except Exception:
                 continue
             if self.s.csrf:
+                log.info("csrf didapat dari %s", url)
                 return self.s.csrf
+        log.warning("csrf KOSONG dari semua probe")
         return None
 
     @staticmethod
@@ -124,18 +132,19 @@ class Roblox:
         body = {"ctype": self._ctype(username), "cvalue": username,
                 "password": password}
         extra = dict(challenge_headers or {}) or None
-        code, hdr, text, js = self.s.request("POST", AUTH + "/v2/login", body,
-                                             headers=extra)
-        status, detail = classify(code, hdr, js, text)
-        if status in ("captcha", "2fa"):
-            self.challenge = parse_challenge(hdr)
-        elif status == "csrf":
-            self.csrf()
+        status, detail = "error", "belum jalan"
+        for attempt in (1, 2, 3):
             code, hdr, text, js = self.s.request("POST", AUTH + "/v2/login", body,
                                                  headers=extra)
             status, detail = classify(code, hdr, js, text)
             if status in ("captcha", "2fa"):
                 self.challenge = parse_challenge(hdr)
+            if status != "csrf":
+                break
+            log.info("csrf ditolak, refresh (percobaan %d)", attempt)
+            self.s.csrf = None
+            self.csrf()
+            time.sleep(0.4)
         return status, detail, self.s.roblosecurity
 
     def login_2fa(self, username, password, code2, challenge=None):
@@ -159,7 +168,7 @@ class Roblox:
                    "challengeType": ch.get("type") or "captcha",
                    "challengeMetadata": json.dumps(meta)}
         if not self.s.csrf:
-            self.csrf()
+            self.s.probe_csrf(CHALLENGE, "POST", payload)
         code, hdr, text, js = self.s.request("POST", CHALLENGE, payload)
         if code == 403 and "token validation" in (text or "").lower():
             self.s.csrf = None
@@ -178,6 +187,21 @@ class Roblox:
                     json.dumps(meta).encode()).decode()}
 
 
+def _msg_of(js):
+    """Roblox bisa balikin {'errors':[{'message':..}]} ATAU flat {'message':..}."""
+    if not isinstance(js, dict):
+        return ""
+    m = js.get("message")
+    if isinstance(m, str) and m:
+        return m
+    errs = js.get("errors")
+    if isinstance(errs, list) and errs and isinstance(errs[0], dict):
+        return errs[0].get("message") or ""
+    if isinstance(errs, str):
+        return errs
+    return ""
+
+
 def classify(code, hdr, js, text):
     if code == 200:
         if isinstance(js, dict) and js.get("twoStepVerificationRequired"):
@@ -187,18 +211,13 @@ def classify(code, hdr, js, text):
         return "ratelimited", hdr.get("Retry-After") or ""
     if code in (400, 403):
         ctype = (hdr.get("rblx-challenge-type") or "").lower()
-        msg = ""
-        if isinstance(js, dict):
-            errs = js.get("errors") or []
-            if errs and isinstance(errs[0], dict):
-                msg = errs[0].get("message") or ""
+        msg = _msg_of(js)
         low = msg.lower()
-        if (hdr.get("rblx-challenge-id") or ctype == "captcha"
-                or "captcha" in low or "robot" in low or "challenge" in low):
+        if hdr.get("rblx-challenge-id") or ctype == "captcha" or "captcha" in low:
             return "captcha", msg or ctype
         if ctype == "twostepverification" or "two step" in low or "two-step" in low:
             return "2fa", msg
-        if "token validation" in low:
+        if "token validation" in low or "csrf" in low:
             return "csrf", msg
         if "too many" in low or "flood" in low or "try again" in low:
             return "ratelimited", msg
@@ -206,7 +225,7 @@ def classify(code, hdr, js, text):
             return "banned", msg
         if "incorrect" in low or "invalid" in low or "doesn't exist" in low:
             return "invalid", msg
-        if not msg and not js:
+        if not msg:
             return "blocked", "%s non-json %s" % (code, (text or "")[:60])
-        return "denied", "%s | %s" % (code, msg or (text or "")[:80])
+        return "denied", "%s | %s" % (code, msg[:80])
     return "error", "%s %s" % (code, (text or "")[:200])
