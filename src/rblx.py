@@ -1,13 +1,12 @@
-import base64, json, random, time
+import base64, json, logging, random, time
 
 import config, util
+
+log = logging.getLogger("svc.rblx")
 
 AUTH = "https://auth.roblox.com"
 APIS = "https://apis.roblox.com"
 CHALLENGE = APIS + "/challenge/v1/continue"
-KEY_URL = "https://apis.rbxcdn.com/captcha/v1/metadata"
-
-# fallback kalau CDN gak kebaca
 LOGIN_KEY = "476068BF-9607-4799-B53D-966BE98E2B81"
 
 UAS = [
@@ -17,33 +16,36 @@ UAS = [
     "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
 ]
 
-CSRF_PROBES = [
-    ("POST", AUTH + "/v2/login"),
-    ("POST", AUTH + "/v2/logout"),
-]
+CSRF_PROBES = [("POST", AUTH + "/v2/login"), ("POST", AUTH + "/v2/logout")]
 
-BROWSER_HDR = {
-    "Origin": "https://www.roblox.com",
-    "Referer": "https://www.roblox.com/",
+BROWSER_HDR = {"Origin": "https://www.roblox.com", "Referer": "https://www.roblox.com/"}
+
+SEC_HDR = {
+    "sec-ch-ua": '"Chromium";v="126", "Google Chrome";v="126", "Not.A/Brand";v="24"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"Windows"',
+    "Sec-Fetch-Site": "same-site",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Dest": "empty",
 }
 
-_keys_cache = {"ts": 0.0, "keys": {}}
+_keys = {"ts": 0.0, "v": {}}
 
 
 def public_key(kind="ACTION_TYPE_WEB_LOGIN"):
     if config.CAPTCHA_PUBLIC_KEY:
         return config.CAPTCHA_PUBLIC_KEY
-    if _keys_cache["keys"] and time.time() - _keys_cache["ts"] < 3600:
-        return _keys_cache["keys"].get(kind) or LOGIN_KEY
+    if _keys["v"] and time.time() - _keys["ts"] < 3600:
+        return _keys["v"].get(kind) or LOGIN_KEY
     try:
         s = util.Session("Roblox/WinInet", 10)
-        code, hdr, text, js = s.request("GET", KEY_URL)
+        code, hdr, text, js = s.request("GET", config.KEYS_URL)
         if code == 200 and isinstance(js, dict):
-            _keys_cache["keys"] = js.get("funCaptchaPublicKeys") or {}
-            _keys_cache["ts"] = time.time()
+            _keys["v"] = js.get("funCaptchaPublicKeys") or {}
+            _keys["ts"] = time.time()
     except Exception:
         pass
-    return _keys_cache["keys"].get(kind) or LOGIN_KEY
+    return _keys["v"].get(kind) or LOGIN_KEY
 
 
 def _b64json(raw):
@@ -54,7 +56,6 @@ def _b64json(raw):
 
 
 def parse_challenge(hdr):
-    """Tahan banting: metadata bisa dict ATAU string JSON bersarang."""
     cid = hdr.get("rblx-challenge-id")
     ctype = hdr.get("rblx-challenge-type") or "captcha"
     raw = hdr.get("rblx-challenge-metadata")
@@ -74,13 +75,13 @@ def parse_challenge(hdr):
     if not meta:
         meta = {k: v for k, v in outer.items()
                 if k not in ("challengeId", "challengeType")}
-    blob = meta.get("dataExchangeBlob") or meta.get("blob") or ""
-    return {"id": cid, "type": ctype, "meta": meta, "blob": blob,
-            "public_key": meta.get("publicKey") or "", "raw": raw, "token": None}
+    return {"id": cid, "type": ctype, "meta": meta,
+            "blob": meta.get("dataExchangeBlob") or meta.get("blob") or "",
+            "public_key": meta.get("publicKey") or "", "token": None,
+            "meta_solved": None}
 
 
 def solve_metadata(ch, token):
-    """Metadata yang dipakai buat continue + retry: asli + captchaToken."""
     meta = dict(ch.get("meta") or {})
     meta["captchaToken"] = token
     if ch.get("type") == "captcha":
@@ -89,20 +90,19 @@ def solve_metadata(ch, token):
 
 
 class Roblox:
-    def __init__(self, ua=None, timeout=None, proxy=None):
-        self.s = util.Session(ua or config.UA, timeout or config.HTTP_TIMEOUT,
-                              proxy if proxy is not None else (config.PROXY or None))
+    def __init__(self, ua=None, timeout=None, proxy=None, sec=False):
+        self.s = util.Session(ua or config.UA, timeout, proxy)
         self.s.extra.update(BROWSER_HDR)
+        if sec or (self.s.ua or "").startswith("Mozilla"):
+            self.s.extra.update(SEC_HDR)
         self.challenge = None
 
-    def reset(self, rotate=False, soft=False):
+    def reset(self, soft=False):
         if soft:
             self.s.drop_cookie(".ROBLOSECURITY")
         else:
             self.s.clear_cookies()
         self.challenge = None
-        if rotate and config.ROTATE_UA:
-            self.s.ua = random.choice(UAS)
 
     def csrf(self):
         for method, url in CSRF_PROBES:
@@ -127,9 +127,7 @@ class Roblox:
         code, hdr, text, js = self.s.request("POST", AUTH + "/v2/login", body,
                                              headers=extra)
         status, detail = classify(code, hdr, js, text)
-        if status == "captcha":
-            self.challenge = parse_challenge(hdr)
-        elif status == "2fa":
+        if status in ("captcha", "2fa"):
             self.challenge = parse_challenge(hdr)
         elif status == "csrf":
             self.csrf()
@@ -141,7 +139,6 @@ class Roblox:
         return status, detail, self.s.roblosecurity
 
     def login_2fa(self, username, password, code2, challenge=None):
-        """Selesain 2FA: retry login + twoStepVerificationCode + challenge header."""
         ch = challenge or self.challenge
         if not self.s.csrf:
             self.csrf()
@@ -149,8 +146,7 @@ class Roblox:
                 "password": password, "twoStepVerificationCode": code2}
         code, hdr, text, js = self.s.request("POST", AUTH + "/v2/login", body,
                                              headers=self.challenge_headers(ch))
-        status, detail = classify(code, hdr, js, text)
-        return status, detail, self.s.roblosecurity
+        return classify(code, hdr, js, text) + (self.s.roblosecurity,)
 
     def continue_challenge(self, token, challenge=None):
         ch = challenge or self.challenge
@@ -173,17 +169,13 @@ class Roblox:
 
     def challenge_headers(self, challenge=None):
         ch = challenge or self.challenge
-        if not ch or not ch.get("id"):
-            return None
-        if not ch.get("token"):
+        if not ch or not ch.get("id") or not ch.get("token"):
             return None
         meta = ch.get("meta_solved") or solve_metadata(ch, ch["token"])
-        return {
-            "Rblx-Challenge-Id": ch.get("id"),
-            "Rblx-Challenge-Type": ch.get("type") or "captcha",
-            "Rblx-Challenge-Metadata": base64.b64encode(
-                json.dumps(meta).encode()).decode(),
-        }
+        return {"Rblx-Challenge-Id": ch.get("id"),
+                "Rblx-Challenge-Type": ch.get("type") or "captcha",
+                "Rblx-Challenge-Metadata": base64.b64encode(
+                    json.dumps(meta).encode()).decode()}
 
 
 def classify(code, hdr, js, text):
@@ -214,5 +206,7 @@ def classify(code, hdr, js, text):
             return "banned", msg
         if "incorrect" in low or "invalid" in low or "doesn't exist" in low:
             return "invalid", msg
+        if not msg and not js:
+            return "blocked", "%s non-json %s" % (code, (text or "")[:60])
         return "denied", "%s | %s" % (code, msg or (text or "")[:80])
     return "error", "%s %s" % (code, (text or "")[:200])
