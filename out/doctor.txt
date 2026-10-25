@@ -9,7 +9,7 @@ UA=Roblox/WinInet workers=2 captcha=auto
 ----------------------------------------------
 [FAIL] BOT_TOKEN kosong
 ----------------------------------------------
-[info] outbound IP: 172.212.205.228
+[info] outbound IP: 64.236.142.226
 [ OK ] users/1 -> 200
 ----------------------------------------------
 [minimal/Roblox/WinIn] -> 403 denied | cf=- | ct=application/json; charse

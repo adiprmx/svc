@@ -3,21 +3,21 @@
 python 3.12.15 | UA: Roblox/WinInet
 BASE: /home/runner/work/svc/svc
 semua modul ke-import
-(env) 0.0s
+(env) 0.1s
 
 === csrf ===
 GET /v2/login -> 404 | x-csrf-token: False
-(csrf) 0.3s
+(csrf) 0.1s
 
 === users ===
 users/1 -> 200 | Roblox
-(users) 0.2s
+(users) 0.3s
 
 === ua-variants ===
 login Roblox/WinInet                                 -> 403 denied
 login Roblox/2.616.551 (Android; Android 12; SM-G991 -> 403 denied
 login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 denied
-(ua-variants) 5.1s
+(ua-variants) 5.0s
 
 === captcha-rate ===
   attempt 1 -> denied
@@ -29,7 +29,7 @@ login Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl -> 403 denied
   attempt 7 -> denied
   attempt 8 -> denied
 CAPTCHA-RATE dari IP ini: {'denied': 8}
-(captcha-rate) 11.3s
+(captcha-rate) 11.0s
 
 === store ===
 users: 1 | pending: 1
@@ -40,7 +40,7 @@ hits: []
 
 === pack ===
 pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (31 KB) 
-svc.py ada: True 31981
+svc.py ada: True 31996
 (pack) 0.0s
 
 === smoke: svc.py (packed) ===
@@ -55,7 +55,7 @@ UA=Roblox/WinInet workers=2 captcha=auto
 ----------------------------------------------
 [FAIL] BOT_TOKEN kosong
 ----------------------------------------------
-[info] outbound IP: 172.212.205.228
+[info] outbound IP: 64.236.142.226
 [ OK ] users/1 -> 200
 ----------------------------------------------
 [minimal/Roblox/WinIn] -> 403 denied | cf=- | ct=application/json; charse
@@ -67,4 +67,4 @@ UA=Roblox/WinInet workers=2 captcha=auto
 [WARN] BOT_TOKEN kosong
 HASIL: ADA MASALAH
 ==============================================
-2026-10-25 02:28:39,223 WARNING svc doctor gagal -> set SVC_FORCE=1 buat lanjut paksa
+2026-10-25 02:30:49,738 WARNING svc doctor gagal -> set SVC_FORCE=1 buat lanjut paksa
