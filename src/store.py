@@ -24,26 +24,12 @@ def _k(u):
     return (u or "").strip().lower()
 
 
-def _cols(table):
-    return {r["name"] for r in _db.execute("PRAGMA table_info(%s)" % table)}
-
-
 def init(path):
     global _db
     _db = sqlite3.connect(path, check_same_thread=False, timeout=30)
     _db.row_factory = sqlite3.Row
     with _lock:
         _db.executescript(SCHEMA)
-        for tbl, col, ddl in (("users", "name", "TEXT"),
-                              ("combos", "attempts", "INTEGER DEFAULT 0"),
-                              ("combos", "next_try", "REAL DEFAULT 0"),
-                              ("combos", "ctries", "INTEGER DEFAULT 0"),
-                              ("hits", "note", "TEXT")):
-            if col not in _cols(tbl):
-                _db.execute("ALTER TABLE %s ADD COLUMN %s %s" % (tbl, col, ddl))
-        _db.execute("UPDATE combos SET next_try=0 WHERE next_try IS NULL")
-        _db.execute("UPDATE combos SET attempts=0 WHERE attempts IS NULL")
-        _db.execute("UPDATE combos SET ctries=0 WHERE ctries IS NULL")
         _db.commit()
 
 
@@ -52,26 +38,24 @@ def set_shard(idx, total):
     _shard = (max(0, int(idx)), max(1, int(total)))
 
 
-def close():
-    global _db
-    with _lock:
-        if _db is not None:
-            _db.close()
-            _db = None
-
-
 def add_users(rows):
     with _lock:
         _db.executemany(
-            "INSERT OR IGNORE INTO users(id, username, name, created, ts) VALUES(?,?,?,?,?)",
+            "INSERT OR IGNORE INTO users(id, username, name, created, ts) "
+            "VALUES(?,?,?,?,?)",
             [(r[0], _k(r[1]), r[2], r[3], r[4]) for r in rows])
         _db.commit()
 
 
-def all_usernames():
+def all_usernames(limit=0):
     with _lock:
-        return [r["username"] for r in
-                _db.execute("SELECT username FROM users ORDER BY id")]
+        q = "SELECT username FROM users ORDER BY id" + (" LIMIT %d" % limit if limit else "")
+        return [r["username"] for r in _db.execute(q)]
+
+
+def user_count():
+    with _lock:
+        return _db.execute("SELECT COUNT(*) c FROM users").fetchone()["c"]
 
 
 def add_combos(rows, chunk=5000):
@@ -103,60 +87,79 @@ def claim_combo():
                     "WHERE username=? AND password=?",
                     (now, r["username"], r["password"]))
         _db.commit()
-        return {"username": r["username"], "password": r["password"],
-                "attempts": r["attempts"] + 1}
+        return {"username": r["username"], "password": r["password"]}
 
 
-def finish_combo(u, p, status, detail="", delay=0.0):
+def _set(u, p, status, detail="", delay=0.0, extra=""):
     now = time.time()
     with _lock:
-        _db.execute("UPDATE combos SET status=?, detail=?, ts=?, next_try=? "
-                    "WHERE username=? AND password=?",
+        _db.execute("UPDATE combos SET status=?, detail=?, ts=?, next_try=? %s "
+                    "WHERE username=? AND password=?" % extra,
                     (status, (detail or "")[:300], now, now + delay, _k(u), p))
         _db.commit()
+
+
+def finish_combo(u, p, status, detail=""):
+    _set(u, p, status, detail)
+
+
+def back_to_pending(u, p, detail=""):
+    _set(u, p, "pending", detail)
 
 
 def requeue(u, p, detail="", delay=0.0, max_attempts=3):
-    now = time.time()
     with _lock:
         r = _db.execute("SELECT attempts FROM combos WHERE username=? AND password=?",
                         (_k(u), p)).fetchone()
-        att = r["attempts"] if r else max_attempts
-        status = "pending" if att < max_attempts else "dead"
-        _db.execute("UPDATE combos SET status=?, detail=?, ts=?, next_try=? "
-                    "WHERE username=? AND password=?",
-                    (status, (detail or "")[:300], now, now + delay, _k(u), p))
-        _db.commit()
-        return status
+    att = r["attempts"] if r else max_attempts
+    st = "pending" if att < max_attempts else "dead"
+    _set(u, p, st, detail, delay)
+    return st
 
 
-def mark_captcha(u, p, detail="", delay=0.0, max_tries=5):
-    """Captcha BUKAN bukti salah password. ctries kepisah dari attempts."""
-    now = time.time()
+def mark_captcha(u, p, detail="", delay=0.0):
+    _set(u, p, "captcha", detail, delay, extra=", ctries=ctries+1")
+
+
+def mark_soft(u, p, detail="", delay=0.0):
+    _set(u, p, "soft", detail, delay)
+
+
+def _count(status):
     with _lock:
-        _db.execute("UPDATE combos SET status='captcha', ctries=ctries+1, "
-                    "detail=?, ts=?, next_try=? WHERE username=? AND password=?",
-                    ((detail or "")[:300], now, now + delay, _k(u), p))
-        _db.commit()
+        return _db.execute("SELECT COUNT(*) c FROM combos WHERE status=?",
+                           (status,)).fetchone()["c"]
+
+
+def pending_count():
+    return _count("pending")
 
 
 def captcha_count():
-    with _lock:
-        return _db.execute("SELECT COUNT(*) c FROM combos "
-                           "WHERE status='captcha'").fetchone()["c"]
+    return _count("captcha")
+
+
+def soft_count():
+    return _count("soft")
 
 
 def captcha_list(limit=15):
     with _lock:
         return ["%s : %s  [%s/%d]" % (r["username"], r["password"],
                                       (r["detail"] or "")[:40], r["ctries"])
-                for r in _db.execute(
-                    "SELECT username, password, detail, ctries FROM combos "
-                    "WHERE status='captcha' ORDER BY ts LIMIT ?", (limit,))]
+                for r in _db.execute("SELECT username, password, detail, ctries "
+                                     "FROM combos WHERE status='captcha' "
+                                     "ORDER BY ts LIMIT ?", (limit,))]
+
+
+def dead_list(limit=15):
+    with _lock:
+        return ["%s : %s  [%s]" % (r["username"], r["password"], (r["detail"] or "")[:40])
+                for r in _db.execute("SELECT username, password, detail FROM combos "
+                                     "WHERE status='dead' LIMIT ?", (limit,))]
 
 
 def retry_captcha(max_tries=5):
-    """Balikin combo captcha ke pending. Yang udah kelewat batas -> dead."""
     with _lock:
         n = _db.execute("SELECT COUNT(*) c FROM combos WHERE status='captcha' "
                         "AND ctries < ?", (max_tries,)).fetchone()["c"]
@@ -168,25 +171,43 @@ def retry_captcha(max_tries=5):
     return n
 
 
-def reset_running():
+def retry_soft():
     with _lock:
-        _db.execute("UPDATE combos SET status='pending', next_try=0 WHERE status='running'")
-        _db.commit()
-
-
-def retry_dead():
-    with _lock:
-        n = _db.execute("SELECT COUNT(*) c FROM combos WHERE status='dead'").fetchone()["c"]
-        _db.execute("UPDATE combos SET status='pending', attempts=0, ctries=0, next_try=0 "
-                    "WHERE status='dead'")
+        n = _count("soft")
+        _db.execute("UPDATE combos SET status='pending', attempts=0, next_try=0 "
+                    "WHERE status='soft'")
         _db.commit()
     return n
 
 
+def retry_dead():
+    with _lock:
+        n = _count("dead")
+        _db.execute("UPDATE combos SET status='pending', attempts=0, ctries=0, "
+                    "next_try=0 WHERE status='dead'")
+        _db.commit()
+    return n
+
+
+def reset_running():
+    with _lock:
+        _db.execute("UPDATE combos SET status='pending', next_try=0 "
+                    "WHERE status='running'")
+        _db.commit()
+
+
 def add_hit(u, p, cookie, note=""):
     with _lock:
-        _db.execute("INSERT OR REPLACE INTO hits(username, password, cookie, data, note, ts) "
-                    "VALUES(?,?,?,?,?,?)", (_k(u), p, cookie, "", note, time.time()))
+        _db.execute("INSERT OR REPLACE INTO hits(username, password, cookie, data, "
+                    "note, ts) VALUES(?,?,?,?,?,?)",
+                    (_k(u), p, cookie, "", note, time.time()))
+        _db.commit()
+
+
+def update_hit_cookie(u, cookie, note=""):
+    with _lock:
+        _db.execute("UPDATE hits SET cookie=?, note=? WHERE username=?",
+                    (cookie, note, _k(u)))
         _db.commit()
 
 
@@ -209,18 +230,9 @@ def get_hit(u):
         return dict(r) if r else None
 
 
-def dead_list(limit=15):
+def hit_count():
     with _lock:
-        return ["%s : %s  [%s]" % (r["username"], r["password"], (r["detail"] or "")[:40])
-                for r in _db.execute(
-                    "SELECT username, password, detail FROM combos "
-                    "WHERE status='dead' LIMIT ?", (limit,))]
-
-
-def pending_count():
-    with _lock:
-        return _db.execute("SELECT COUNT(*) c FROM combos "
-                           "WHERE status='pending'").fetchone()["c"]
+        return _db.execute("SELECT COUNT(*) c FROM hits").fetchone()["c"]
 
 
 def get_state(k, default=None):
@@ -250,19 +262,22 @@ def export(full=True):
         if full:
             out["users"] = [dict(r) for r in _db.execute("SELECT * FROM users")]
             out["combos"] = [dict(r) for r in _db.execute(
-                "SELECT username, password, status, attempts, next_try, ctries, ts FROM combos")]
+                "SELECT username, password, status, attempts, next_try, ctries, ts "
+                "FROM combos")]
     return json.dumps(out, default=str)
 
 
 def restore(payload):
     data = json.loads(payload or "{}")
     now = time.time()
+    n = 0
     with _lock:
         for h in data.get("hits", []):
-            _db.execute("INSERT OR REPLACE INTO hits(username, password, cookie, data, note, ts) "
-                        "VALUES(?,?,?,?,?,?)",
+            _db.execute("INSERT OR REPLACE INTO hits(username, password, cookie, "
+                        "data, note, ts) VALUES(?,?,?,?,?,?)",
                         (_k(h.get("username")), h.get("password"), h.get("cookie"),
                          h.get("data"), h.get("note"), h.get("ts") or now))
+            n += 1
         for s in data.get("state", []):
             _db.execute("INSERT OR REPLACE INTO state(k, v) VALUES(?,?)",
                         (s.get("k"), s.get("v")))
@@ -272,51 +287,11 @@ def restore(payload):
                         (u.get("id"), _k(u.get("username")), u.get("name"),
                          u.get("created"), u.get("ts") or now))
         for c in data.get("combos", []):
-            _db.execute(
-                "INSERT OR IGNORE INTO combos"
-                "(username, password, status, attempts, next_try, ctries, ts) VALUES(?,?,?,?,?,?,?)",
-                (_k(c.get("username")), c.get("password"), c.get("status") or "pending",
-                 c.get("attempts") or 0, c.get("next_try") or 0, c.get("ctries") or 0,
-                 c.get("ts") or now))
-        _db.commit()
-    return len(data.get("hits", []))
-
-def back_to_pending(u, p, detail=""):
-    """Balikin combo ke pending TANPA nambah attempts (buat kasus warm-wait)."""
-    with _lock:
-        _db.execute("UPDATE combos SET status='pending', detail=?, next_try=0 "
-                    "WHERE username=? AND password=?",
-                    ((detail or "")[:300], _k(u), p))
-        _db.commit()
-
-
-def mark_soft(u, p, detail="", delay=0.0):
-    """invalid yang masih dicurigai (IP jelek) -> bisa di-retry."""
-    now = time.time()
-    with _lock:
-        _db.execute("UPDATE combos SET status='soft', detail=?, ts=?, next_try=? "
-                    "WHERE username=? AND password=?",
-                    ((detail or "")[:300], now, now + delay, _k(u), p))
-        _db.commit()
-
-
-def soft_count():
-    with _lock:
-        return _db.execute("SELECT COUNT(*) c FROM combos "
-                           "WHERE status='soft'").fetchone()["c"]
-
-
-def retry_soft():
-    with _lock:
-        n = _db.execute("SELECT COUNT(*) c FROM combos WHERE status='soft'").fetchone()["c"]
-        _db.execute("UPDATE combos SET status='pending', attempts=0, next_try=0 "
-                    "WHERE status='soft'")
+            _db.execute("INSERT OR IGNORE INTO combos(username, password, status, "
+                        "attempts, next_try, ctries, ts) VALUES(?,?,?,?,?,?,?)",
+                        (_k(c.get("username")), c.get("password"),
+                         c.get("status") or "pending", c.get("attempts") or 0,
+                         c.get("next_try") or 0, c.get("ctries") or 0,
+                         c.get("ts") or now))
         _db.commit()
     return n
-
-
-def update_hit_cookie(u, cookie, note=""):
-    with _lock:
-        _db.execute("UPDATE hits SET cookie=?, note=? WHERE username=?",
-                    (cookie, note, _k(u)))
-        _db.commit()
