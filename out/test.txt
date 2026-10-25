@@ -11,7 +11,7 @@ GET /v2/login -> 404 | x-csrf-token: False
 
 === users ===
 users/1 -> 200 | Roblox
-(users) 0.4s
+(users) 0.3s
 
 === ua-variants ===
 login Roblox/WinInet                                 -> 403 denied
@@ -40,11 +40,11 @@ hits: []
 
 === pack ===
 pack rc=0 ok -> /home/runner/work/svc/svc/svc.py (28 KB) 
-svc.py ada: True 28920
+svc.py ada: True 29579
 (pack) 0.0s
 
 === smoke: svc.py (packed) ===
-2026-10-24 19:54:29,997 INFO svc restore: 0 hits
-2026-10-24 19:54:29,997 INFO svc regen 0 combo
-2026-10-24 19:54:29,999 INFO svc svc up mode=worker workers=2 shard=0/1 captcha=auto
-2026-10-24 19:54:50,001 INFO svc svc down
+2026-10-25 02:22:14,675 INFO svc restore: 0 hits
+2026-10-25 02:22:14,675 INFO svc regen 0 combo
+2026-10-25 02:22:14,676 INFO svc svc up mode=worker workers=2 shard=0/1 captcha=auto
+2026-10-25 02:22:34,678 INFO svc svc down
